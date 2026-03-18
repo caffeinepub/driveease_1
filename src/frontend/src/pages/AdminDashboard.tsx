@@ -3,12 +3,17 @@ import {
   Car,
   CheckCircle,
   ClipboardList,
+  Download,
+  Eye,
   LogOut,
+  MapPin,
   MessageSquare,
   Settings,
+  Timer,
   Users,
   XCircle,
 } from "lucide-react";
+import React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -18,6 +23,12 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
 import {
   Table,
@@ -51,7 +62,8 @@ type Tab =
   | "registrations"
   | "customers"
   | "enquiries"
-  | "settings";
+  | "settings"
+  | "live-drivers";
 
 const ADMIN_PASSWORD = "126312";
 const AUTH_KEY = "admin_auth";
@@ -92,6 +104,51 @@ function fmt(iso: string) {
   }
 }
 
+function downloadCSV(filename: string, rows: string[][]) {
+  const csv = rows
+    .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function formatDuration(ms: number): string {
+  const totalMins = Math.floor(ms / 60000);
+  const hrs = Math.floor(totalMins / 60);
+  const mins = totalMins % 60;
+  if (hrs > 0) return `${hrs}h ${mins}m`;
+  return `${mins}m`;
+}
+
+function getDriverOnlineSince(driverId: string | number): string | null {
+  return localStorage.getItem(`driveease_driver_online_since_${driverId}`);
+}
+
+function getDriverActivity(
+  driverId: string | number,
+): Array<{ status: string; timestamp: string }> {
+  try {
+    return JSON.parse(
+      localStorage.getItem(`driveease_driver_activity_${driverId}`) || "[]",
+    );
+  } catch {
+    return [];
+  }
+}
+
+function getDriverStatus(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem("driveease_driver_status") || "{}");
+  } catch {
+    return {};
+  }
+}
+
 export default function AdminDashboard() {
   const [authed, setAuthed] = useState(
     () => localStorage.getItem(AUTH_KEY) === "true",
@@ -107,6 +164,24 @@ export default function AdminDashboard() {
   const [drivers, setDrivers] = useState<DriverData[]>([]);
   const [driverRates, setDriverRates] = useState<Record<number, number>>({});
   const [ratesSaved, setRatesSaved] = useState(false);
+  const [_tick, setTick] = useState(0);
+
+  // Filters
+  const [bookingSearch, setBookingSearch] = useState("");
+  const [bookingDateFilter, setBookingDateFilter] = useState("");
+  const [driverNameFilter, setDriverNameFilter] = useState("");
+  const [driverCityFilter, setDriverCityFilter] = useState("");
+  const [regNameFilter, setRegNameFilter] = useState("");
+  const [regCityFilter, setRegCityFilter] = useState("");
+  const [regStatusFilter, setRegStatusFilter] = useState("");
+
+  // Registration detail modal
+  const [viewReg, setViewReg] = useState<LocalRegistration | null>(null);
+
+  // Driver activity expand
+  const [expandedDriverId, setExpandedDriverId] = useState<
+    string | number | null
+  >(null);
 
   const loadAll = useCallback(() => {
     setBookings(getBookings());
@@ -128,7 +203,11 @@ export default function AdminDashboard() {
     if (authed) {
       loadAll();
       const interval = setInterval(loadAll, 10000);
-      return () => clearInterval(interval);
+      const tickInterval = setInterval(() => setTick((t) => t + 1), 30000);
+      return () => {
+        clearInterval(interval);
+        clearInterval(tickInterval);
+      };
     }
   }, [authed, loadAll]);
 
@@ -200,6 +279,18 @@ export default function AdminDashboard() {
     );
   }
 
+  // ── Online drivers from registrations + seed ──────────────────────────────
+  const driverStatus = getDriverStatus();
+  const onlineRegisteredDrivers = getRegistrations().filter(
+    (r) =>
+      r.status === "approved" ||
+      driverStatus[String(r.id)] === "online" ||
+      driverStatus[r.phone] === "online",
+  );
+  const onlineCount =
+    onlineRegisteredDrivers.length +
+    seedDrivers.filter((d) => driverStatus[String(d.id)] === "online").length;
+
   // ── Sidebar nav items ─────────────────────────────────────────────────────
   const navItems: {
     key: Tab;
@@ -217,7 +308,9 @@ export default function AdminDashboard() {
       key: "drivers",
       label: "Drivers",
       icon: <Car size={18} />,
-      count: drivers.length,
+      count:
+        drivers.length +
+        registrations.filter((r) => r.status === "approved").length,
     },
     {
       key: "registrations",
@@ -238,15 +331,86 @@ export default function AdminDashboard() {
       count: enquiries.length,
     },
     { key: "settings", label: "Settings", icon: <Settings size={18} /> },
+    {
+      key: "live-drivers",
+      label: "Live Drivers",
+      icon: <MapPin size={18} />,
+      count: onlineCount,
+    },
   ];
 
-  // ── Summary cards ─────────────────────────────────────────────────────────
+  // ── Summary ─────────────────────────────────────────────────────────────
   const bookingSummary = {
     total: bookings.length,
     pending: bookings.filter((b) => b.status === "pending").length,
     confirmed: bookings.filter((b) => b.status === "confirmed").length,
     rejected: bookings.filter((b) => b.status === "rejected").length,
   };
+
+  // ── Filtered data ─────────────────────────────────────────────────────────
+  const filteredBookings = bookings.filter((b) => {
+    const matchSearch =
+      !bookingSearch ||
+      b.customerName.toLowerCase().includes(bookingSearch.toLowerCase()) ||
+      b.customerPhone.includes(bookingSearch);
+    const matchDate =
+      !bookingDateFilter ||
+      b.startDate.includes(bookingDateFilter) ||
+      (b.createdAt ?? "").startsWith(bookingDateFilter);
+    return matchSearch && matchDate;
+  });
+
+  const allDriverRows = [
+    ...drivers.map((d) => ({
+      id: d.id,
+      name: d.name,
+      phone: d.phone ?? "",
+      city: d.city,
+      state: d.state,
+      rating: d.rating,
+      pricePerDay: d.pricePerDay,
+      experienceYears: d.experienceYears,
+      isOnline: driverStatus[String(d.id)] === "online" || d.isAvailable,
+      isRegistered: false,
+    })),
+    ...registrations
+      .filter((r) => r.status === "approved")
+      .map((r) => ({
+        id: `reg-${r.id}`,
+        name: r.name,
+        phone: r.phone,
+        city: r.city,
+        state: r.state,
+        rating: 4.5,
+        pricePerDay: 1200,
+        experienceYears: 2,
+        isOnline:
+          driverStatus[String(r.id)] === "online" ||
+          driverStatus[r.phone] === "online",
+        isRegistered: true,
+      })),
+  ];
+
+  const filteredDriverRows = allDriverRows.filter((d) => {
+    const matchName =
+      !driverNameFilter ||
+      d.name.toLowerCase().includes(driverNameFilter.toLowerCase());
+    const matchCity =
+      !driverCityFilter ||
+      d.city.toLowerCase().includes(driverCityFilter.toLowerCase());
+    return matchName && matchCity;
+  });
+
+  const filteredRegs = registrations.filter((r) => {
+    const matchName =
+      !regNameFilter ||
+      r.name.toLowerCase().includes(regNameFilter.toLowerCase());
+    const matchCity =
+      !regCityFilter ||
+      r.city.toLowerCase().includes(regCityFilter.toLowerCase());
+    const matchStatus = !regStatusFilter || r.status === regStatusFilter;
+    return matchName && matchCity && matchStatus;
+  });
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
@@ -263,6 +427,23 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
+
+        {/* Online drivers quick stat */}
+        {onlineCount > 0 && (
+          <button
+            type="button"
+            className="mx-3 mt-3 bg-green-900/50 border border-green-700/50 rounded-lg px-3 py-2 cursor-pointer hover:bg-green-900/70 transition-colors text-left w-full"
+            onClick={() => setTab("live-drivers")}
+            data-ocid="admin.live_drivers.card"
+          >
+            <p className="text-green-400 text-xs font-semibold">
+              ⚡ Online Drivers
+            </p>
+            <p className="text-white font-bold text-lg">
+              {onlineCount} Live Now
+            </p>
+          </button>
+        )}
 
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => (
@@ -309,7 +490,6 @@ export default function AdminDashboard() {
 
       {/* Main content */}
       <main className="flex-1 overflow-y-auto">
-        {/* Header */}
         <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
           <div>
             <h1 className="text-lg font-bold text-gray-900">
@@ -365,7 +545,69 @@ export default function AdminDashboard() {
                 ))}
               </div>
 
-              {bookings.length === 0 ? (
+              {/* Filters + CSV */}
+              <div className="flex flex-wrap items-center gap-3">
+                <Input
+                  placeholder="Search by name or phone..."
+                  value={bookingSearch}
+                  onChange={(e) => setBookingSearch(e.target.value)}
+                  className="w-56"
+                  data-ocid="admin.bookings.search_input"
+                />
+                <Input
+                  type="date"
+                  value={bookingDateFilter}
+                  onChange={(e) => setBookingDateFilter(e.target.value)}
+                  className="w-44"
+                  data-ocid="admin.bookings.input"
+                />
+                {(bookingSearch || bookingDateFilter) && (
+                  <span className="text-sm text-gray-500">
+                    {filteredBookings.length} result
+                    {filteredBookings.length !== 1 ? "s" : ""}
+                  </span>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const rows = [
+                      [
+                        "ID",
+                        "Date",
+                        "Customer",
+                        "Phone",
+                        "Driver",
+                        "Pickup",
+                        "Drop",
+                        "Amount",
+                        "Status",
+                      ],
+                      ...filteredBookings.map((b) => [
+                        String(b.id),
+                        b.startDate,
+                        b.customerName,
+                        b.customerPhone,
+                        b.driverName,
+                        b.pickupAddress,
+                        b.dropAddress,
+                        String(b.total),
+                        b.status,
+                      ]),
+                    ];
+                    downloadCSV(
+                      `bookings-${new Date().toISOString().slice(0, 10)}.csv`,
+                      rows,
+                    );
+                  }}
+                  className="ml-auto gap-1.5"
+                  data-ocid="admin.bookings.secondary_button"
+                >
+                  <Download size={14} /> Download CSV
+                </Button>
+              </div>
+
+              {filteredBookings.length === 0 ? (
                 <div
                   className="text-center py-16 text-gray-400"
                   data-ocid="admin.bookings.empty_state"
@@ -374,10 +616,7 @@ export default function AdminDashboard() {
                     size={40}
                     className="mx-auto mb-3 opacity-30"
                   />
-                  <p className="font-medium">No bookings yet</p>
-                  <p className="text-sm">
-                    Bookings made on the site will appear here automatically.
-                  </p>
+                  <p className="font-medium">No bookings found</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
@@ -397,7 +636,7 @@ export default function AdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {bookings.map((b, idx) => (
+                      {filteredBookings.map((b, idx) => (
                         <TableRow
                           key={b.id}
                           data-ocid={`admin.bookings.row.${idx + 1}`}
@@ -500,13 +739,70 @@ export default function AdminDashboard() {
           {tab === "drivers" && (
             <div className="space-y-4">
               <Card>
-                <CardContent className="pt-4 pb-4">
-                  <p className="text-sm text-gray-500">Total Drivers</p>
-                  <p className="text-3xl font-black text-gray-900">
-                    {drivers.length}
-                  </p>
+                <CardContent className="pt-4 pb-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500">
+                      Total Drivers (seed + approved registrations)
+                    </p>
+                    <p className="text-3xl font-black text-gray-900">
+                      {filteredDriverRows.length}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const rows = [
+                        [
+                          "Name",
+                          "Phone",
+                          "City",
+                          "State",
+                          "Rating",
+                          "Price/Day",
+                          "Experience",
+                          "Online Status",
+                        ],
+                        ...filteredDriverRows.map((d) => [
+                          d.name,
+                          d.phone,
+                          d.city,
+                          d.state,
+                          String(d.rating),
+                          String(d.pricePerDay),
+                          `${d.experienceYears} yrs`,
+                          d.isOnline ? "Online" : "Offline",
+                        ]),
+                      ];
+                      downloadCSV(
+                        `drivers-${new Date().toISOString().slice(0, 10)}.csv`,
+                        rows,
+                      );
+                    }}
+                    className="gap-1.5"
+                    data-ocid="admin.drivers.secondary_button"
+                  >
+                    <Download size={14} /> Download CSV
+                  </Button>
                 </CardContent>
               </Card>
+
+              <div className="flex gap-3">
+                <Input
+                  placeholder="Filter by name..."
+                  value={driverNameFilter}
+                  onChange={(e) => setDriverNameFilter(e.target.value)}
+                  className="w-48"
+                  data-ocid="admin.drivers.search_input"
+                />
+                <Input
+                  placeholder="Filter by city..."
+                  value={driverCityFilter}
+                  onChange={(e) => setDriverCityFilter(e.target.value)}
+                  className="w-48"
+                  data-ocid="admin.drivers.input"
+                />
+              </div>
 
               <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
                 <Table>
@@ -520,44 +816,63 @@ export default function AdminDashboard() {
                       <TableHead>Rating</TableHead>
                       <TableHead>Price/Day</TableHead>
                       <TableHead>Experience</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Online Status</TableHead>
+                      <TableHead>Online Duration</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {drivers.map((d, idx) => (
-                      <TableRow
-                        key={d.id}
-                        data-ocid={`admin.drivers.row.${idx + 1}`}
-                      >
-                        <TableCell className="text-gray-400 text-xs">
-                          {d.id}
-                        </TableCell>
-                        <TableCell className="font-medium text-sm">
-                          {d.name}
-                        </TableCell>
-                        <TableCell className="text-sm">{d.city}</TableCell>
-                        <TableCell className="text-sm">{d.state}</TableCell>
-                        <TableCell className="font-mono text-xs">
-                          {d.phone}
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-yellow-600 font-semibold text-sm">
-                            ⭐ {d.rating}
-                          </span>
-                        </TableCell>
-                        <TableCell className="font-semibold text-sm">
-                          ₹{d.pricePerDay.toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {d.experienceYears} yrs
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge
-                            status={d.isAvailable ? "confirmed" : "rejected"}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {filteredDriverRows.map((d, idx) => {
+                      const onlineSince = getDriverOnlineSince(d.id);
+                      const duration =
+                        onlineSince && d.isOnline
+                          ? formatDuration(
+                              Date.now() - new Date(onlineSince).getTime(),
+                            )
+                          : null;
+                      return (
+                        <TableRow
+                          key={d.id}
+                          data-ocid={`admin.drivers.row.${idx + 1}`}
+                        >
+                          <TableCell className="text-gray-400 text-xs">
+                            {idx + 1}
+                          </TableCell>
+                          <TableCell className="font-medium text-sm">
+                            {d.name}
+                          </TableCell>
+                          <TableCell className="text-sm">{d.city}</TableCell>
+                          <TableCell className="text-sm">{d.state}</TableCell>
+                          <TableCell className="font-mono text-xs">
+                            {d.phone}
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-yellow-600 font-semibold text-sm">
+                              ⭐ {d.rating}
+                            </span>
+                          </TableCell>
+                          <TableCell className="font-semibold text-sm">
+                            ₹{d.pricePerDay.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {d.experienceYears} yrs
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge
+                              status={d.isOnline ? "confirmed" : "rejected"}
+                            />
+                          </TableCell>
+                          <TableCell className="text-xs text-gray-500">
+                            {duration ? (
+                              <span className="flex items-center gap-1 text-green-600">
+                                <Timer size={12} /> {duration}
+                              </span>
+                            ) : (
+                              <span>&mdash;</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -567,16 +882,76 @@ export default function AdminDashboard() {
           {/* ── REGISTRATIONS TAB ──────────────────────────────────────── */}
           {tab === "registrations" && (
             <div className="space-y-4">
-              {registrations.length === 0 ? (
+              {/* Filters + CSV */}
+              <div className="flex flex-wrap gap-3">
+                <Input
+                  placeholder="Filter by name..."
+                  value={regNameFilter}
+                  onChange={(e) => setRegNameFilter(e.target.value)}
+                  className="w-48"
+                  data-ocid="admin.registrations.search_input"
+                />
+                <Input
+                  placeholder="Filter by city..."
+                  value={regCityFilter}
+                  onChange={(e) => setRegCityFilter(e.target.value)}
+                  className="w-48"
+                  data-ocid="admin.registrations.input"
+                />
+                <select
+                  value={regStatusFilter}
+                  onChange={(e) => setRegStatusFilter(e.target.value)}
+                  className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
+                  data-ocid="admin.registrations.select"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const rows = [
+                      [
+                        "Name",
+                        "Phone",
+                        "Email",
+                        "City",
+                        "State",
+                        "Status",
+                        "Date",
+                      ],
+                      ...filteredRegs.map((r) => [
+                        r.name,
+                        r.phone,
+                        r.email,
+                        r.city,
+                        r.state,
+                        r.status,
+                        fmt(r.submittedAt),
+                      ]),
+                    ];
+                    downloadCSV(
+                      `registrations-${new Date().toISOString().slice(0, 10)}.csv`,
+                      rows,
+                    );
+                  }}
+                  className="ml-auto gap-1.5"
+                  data-ocid="admin.registrations.secondary_button"
+                >
+                  <Download size={14} /> Download CSV
+                </Button>
+              </div>
+
+              {filteredRegs.length === 0 ? (
                 <div
                   className="text-center py-16 text-gray-400"
                   data-ocid="admin.registrations.empty_state"
                 >
                   <CheckCircle size={40} className="mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">No driver registrations yet</p>
-                  <p className="text-sm">
-                    New driver applications will appear here.
-                  </p>
+                  <p className="font-medium">No driver registrations found</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
@@ -594,7 +969,7 @@ export default function AdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {registrations.map((r, idx) => (
+                      {filteredRegs.map((r, idx) => (
                         <TableRow
                           key={r.id}
                           data-ocid={`admin.registrations.row.${idx + 1}`}
@@ -617,7 +992,15 @@ export default function AdminDashboard() {
                             <StatusBadge status={r.status} />
                           </TableCell>
                           <TableCell>
-                            <div className="flex gap-1">
+                            <div className="flex gap-1 flex-wrap">
+                              <button
+                                type="button"
+                                onClick={() => setViewReg(r)}
+                                className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors flex items-center gap-1"
+                                data-ocid={`admin.registrations.edit_button.${idx + 1}`}
+                              >
+                                <Eye size={10} /> View
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => {
@@ -658,13 +1041,12 @@ export default function AdminDashboard() {
             <div className="space-y-4">
               <Card>
                 <CardContent className="pt-4 pb-4">
-                  <p className="text-sm text-gray-500">Total OTP Logins</p>
+                  <p className="text-sm text-gray-500">Registered Customers</p>
                   <p className="text-3xl font-black text-gray-900">
                     {otpLogins.length}
                   </p>
                 </CardContent>
               </Card>
-
               {otpLogins.length === 0 ? (
                 <div
                   className="text-center py-16 text-gray-400"
@@ -672,9 +1054,6 @@ export default function AdminDashboard() {
                 >
                   <Users size={40} className="mx-auto mb-3 opacity-30" />
                   <p className="font-medium">No customer logins yet</p>
-                  <p className="text-sm">
-                    Customer OTP logins will appear here.
-                  </p>
                 </div>
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
@@ -727,9 +1106,6 @@ export default function AdminDashboard() {
                     className="mx-auto mb-3 opacity-30"
                   />
                   <p className="font-medium">No subscription enquiries yet</p>
-                  <p className="text-sm">
-                    Enquiries from the Subscriptions page will appear here.
-                  </p>
                 </div>
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
@@ -831,7 +1207,6 @@ export default function AdminDashboard() {
                   </CardTitle>
                   <p className="text-sm text-gray-500">
                     Override the default price per day for individual drivers.
-                    Changes are saved locally.
                   </p>
                 </CardHeader>
                 <CardContent>
@@ -877,7 +1252,6 @@ export default function AdminDashboard() {
                       </TableBody>
                     </Table>
                   </div>
-
                   <div className="mt-4 flex items-center gap-3">
                     <Button
                       onClick={saveRates}
@@ -899,8 +1273,505 @@ export default function AdminDashboard() {
               </Card>
             </div>
           )}
+
+          {tab === "live-drivers" && (
+            <LiveDriversTab
+              expandedDriverId={expandedDriverId}
+              setExpandedDriverId={setExpandedDriverId}
+            />
+          )}
         </div>
       </main>
+
+      {/* Registration Detail Modal */}
+      <Dialog
+        open={!!viewReg}
+        onOpenChange={(open) => {
+          if (!open) setViewReg(null);
+        }}
+      >
+        <DialogContent
+          className="max-w-md"
+          data-ocid="admin.registrations.dialog"
+        >
+          <DialogHeader>
+            <DialogTitle>Driver Registration Details</DialogTitle>
+          </DialogHeader>
+          {viewReg && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-gray-500 text-xs">Full Name</p>
+                  <p className="font-semibold">{viewReg.name}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs">Phone</p>
+                  <p className="font-semibold font-mono">{viewReg.phone}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs">Email</p>
+                  <p className="font-semibold">{viewReg.email || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs">City</p>
+                  <p className="font-semibold">{viewReg.city}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs">State</p>
+                  <p className="font-semibold">{viewReg.state}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs">Status</p>
+                  <StatusBadge status={viewReg.status} />
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs">Applied On</p>
+                  <p className="font-semibold text-xs">
+                    {fmt(viewReg.submittedAt)}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-gray-700 font-semibold text-sm mb-2">
+                  Document Status
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    "Aadhar Card",
+                    "PAN Card",
+                    "Driving Licence",
+                    "Selfie Photo",
+                  ].map((doc) => (
+                    <div
+                      key={doc}
+                      className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2"
+                    >
+                      <CheckCircle size={14} className="text-green-600" />
+                      <span className="text-xs font-medium text-green-800">
+                        {doc}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-2">
+                  Documents verified during registration payment step.
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => {
+                    updateRegistrationStatus(viewReg.id, "approved");
+                    loadAll();
+                    setViewReg(null);
+                  }}
+                  disabled={viewReg.status === "approved"}
+                  className="flex-1 bg-green-600 hover:bg-green-500 text-white text-sm"
+                  data-ocid="admin.registrations.confirm_button"
+                >
+                  Approve
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    updateRegistrationStatus(viewReg.id, "rejected");
+                    loadAll();
+                    setViewReg(null);
+                  }}
+                  disabled={viewReg.status === "rejected"}
+                  className="flex-1 text-red-600 border-red-200 hover:bg-red-50 text-sm"
+                  data-ocid="admin.registrations.delete_button"
+                >
+                  Reject
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setViewReg(null)}
+                  className="text-sm"
+                  data-ocid="admin.registrations.cancel_button"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ── LiveDriversTab ─────────────────────────────────────────────────────────
+function LiveDriversTab({
+  expandedDriverId,
+  setExpandedDriverId,
+}: {
+  expandedDriverId: string | number | null;
+  setExpandedDriverId: (id: string | number | null) => void;
+}) {
+  const mapRef = React.useRef<HTMLDivElement>(null);
+  const mapInstanceRef = React.useRef<unknown>(null);
+
+  // Merge seed + approved registrations
+  const [driverStatus, setDriverStatus] = React.useState<
+    Record<string, string>
+  >(() => {
+    try {
+      return JSON.parse(
+        localStorage.getItem("driveease_driver_status") || "{}",
+      );
+    } catch {
+      return {};
+    }
+  });
+  const [registrations, setRegistrations] = React.useState(() =>
+    getRegistrations(),
+  );
+
+  React.useEffect(() => {
+    try {
+      setDriverStatus(
+        JSON.parse(localStorage.getItem("driveease_driver_status") || "{}"),
+      );
+    } catch {
+      /* */
+    }
+    setRegistrations(getRegistrations());
+  }); // runs on every render - tick prop change triggers parent re-render
+
+  const allDrivers = React.useMemo(() => {
+    const seed = seedDrivers.map((d) => ({
+      id: String(d.id),
+      name: d.name,
+      phone: d.phone ?? "",
+      city: d.city,
+      lat: 20 + Math.random() * 10,
+      lng: 73 + Math.random() * 15,
+      isOnline: driverStatus[String(d.id)] === "online" || d.isAvailable,
+      isRegistered: false,
+    }));
+
+    const regs = registrations
+      .filter(
+        (r) =>
+          r.status === "approved" ||
+          driverStatus[String(r.id)] === "online" ||
+          driverStatus[r.phone] === "online",
+      )
+      .map((r) => ({
+        id: `reg-${r.id}`,
+        name: r.name,
+        phone: r.phone,
+        city: r.city,
+        lat: 20 + Math.random() * 10,
+        lng: 73 + Math.random() * 15,
+        isOnline:
+          driverStatus[String(r.id)] === "online" ||
+          driverStatus[r.phone] === "online" ||
+          r.status === "approved",
+        isRegistered: true,
+      }));
+
+    // Merge, no duplicate phones
+    const phones = new Set(seed.map((d) => d.phone));
+    return [...seed, ...regs.filter((r) => !phones.has(r.phone))];
+  }, [driverStatus, registrations]);
+
+  const onlineDrivers = allDrivers.filter((d) => d.isOnline);
+  const offlineDrivers = allDrivers.filter((d) => !d.isOnline);
+
+  React.useEffect(() => {
+    if (!mapRef.current || onlineDrivers.length === 0) return;
+
+    const initMap = () => {
+      const L = (window as any).L;
+      if (!L || !mapRef.current) return;
+      if (mapInstanceRef.current) {
+        (mapInstanceRef.current as any).remove();
+        mapInstanceRef.current = null;
+      }
+      const map = L.map(mapRef.current).setView([20.5937, 78.9629], 5);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors",
+      }).addTo(map);
+      for (const d of onlineDrivers) {
+        const icon = L.divIcon({
+          html: `<div style="width:14px;height:14px;background:#16a34a;border-radius:50%;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>`,
+          className: "",
+          iconSize: [14, 14],
+        });
+        L.marker([d.lat, d.lng], { icon })
+          .addTo(map)
+          .bindPopup(
+            `<b>${d.name}</b><br/>City: ${d.city}<br/>Phone: ${d.phone}`,
+          );
+      }
+      mapInstanceRef.current = map;
+    };
+
+    if (!document.getElementById("leaflet-css")) {
+      const link = document.createElement("link");
+      link.id = "leaflet-css";
+      link.rel = "stylesheet";
+      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      document.head.appendChild(link);
+    }
+    if (!(window as any).L) {
+      if (!document.getElementById("leaflet-js")) {
+        const script = document.createElement("script");
+        script.id = "leaflet-js";
+        script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+        script.onload = initMap;
+        document.head.appendChild(script);
+      }
+    } else {
+      initMap();
+    }
+    return () => {
+      if (mapInstanceRef.current) {
+        (mapInstanceRef.current as any).remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, [onlineDrivers]);
+
+  const formatOnlineDuration = (id: string) => {
+    const since = localStorage.getItem(`driveease_driver_online_since_${id}`);
+    if (!since) return null;
+    return formatDuration(Date.now() - new Date(since).getTime());
+  };
+
+  return (
+    <div className="p-6 space-y-5">
+      <div>
+        <h2 className="text-xl font-bold text-gray-900">
+          Live Driver Tracking
+        </h2>
+        <p className="text-gray-500 text-sm mt-0.5">
+          Real-time driver status and location monitoring
+        </p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <p className="text-xs text-gray-500 mb-1">Total Drivers</p>
+            <p className="text-2xl font-bold text-gray-900">
+              {allDrivers.length}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <p className="text-xs text-gray-500 mb-1">Online Now</p>
+            <p className="text-2xl font-bold text-green-600">
+              {onlineDrivers.length}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <p className="text-xs text-gray-500 mb-1">Offline</p>
+            <p className="text-2xl font-bold text-gray-500">
+              {offlineDrivers.length}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Online Drivers with Timer</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {onlineDrivers.length === 0 ? (
+            <div
+              className="text-center py-8 text-gray-400"
+              data-ocid="admin.live_drivers.empty_state"
+            >
+              <MapPin size={32} className="mx-auto mb-2 opacity-40" />
+              <p>
+                No drivers online right now. Drivers must log in and go online.
+              </p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Driver</TableHead>
+                  <TableHead>City</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Online Duration</TableHead>
+                  <TableHead>History</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {onlineDrivers.map((d, idx) => {
+                  const duration = formatOnlineDuration(d.id);
+                  const activity = getDriverActivity(d.id);
+                  const isExpanded = expandedDriverId === d.id;
+                  return (
+                    <React.Fragment key={d.id}>
+                      <TableRow
+                        data-ocid={`admin.live_drivers.item.${idx + 1}`}
+                      >
+                        <TableCell className="font-medium">{d.name}</TableCell>
+                        <TableCell className="text-gray-600">
+                          {d.city}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {d.phone}
+                        </TableCell>
+                        <TableCell>
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                            Online
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          {duration ? (
+                            <span className="flex items-center gap-1 text-green-700 font-semibold text-sm">
+                              <Timer size={13} /> {duration}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-xs">
+                              Just went online
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedDriverId(isExpanded ? null : d.id)
+                            }
+                            className="text-xs text-blue-600 hover:text-blue-800 underline"
+                            data-ocid={`admin.live_drivers.toggle.${idx + 1}`}
+                          >
+                            {isExpanded ? "Hide" : "Show"} History
+                          </button>
+                        </TableCell>
+                      </TableRow>
+                      {isExpanded && (
+                        <TableRow>
+                          <TableCell colSpan={6} className="bg-gray-50">
+                            <div className="py-2 px-2">
+                              <p className="text-xs font-semibold text-gray-600 mb-2">
+                                Last 5 Sessions
+                              </p>
+                              {activity.length === 0 ? (
+                                <p className="text-xs text-gray-400">
+                                  No activity history recorded.
+                                </p>
+                              ) : (
+                                <div className="space-y-1">
+                                  {activity
+                                    .slice(-5)
+                                    .reverse()
+                                    .map((a, _ai) => (
+                                      <div
+                                        key={`${a.status}-${a.timestamp}`}
+                                        className="flex items-center gap-2 text-xs"
+                                      >
+                                        <span
+                                          className={`w-2 h-2 rounded-full ${a.status === "online" ? "bg-green-500" : "bg-gray-400"}`}
+                                        />
+                                        <span
+                                          className={
+                                            a.status === "online"
+                                              ? "text-green-700"
+                                              : "text-gray-600"
+                                          }
+                                        >
+                                          Went {a.status}
+                                        </span>
+                                        <span className="text-gray-400">
+                                          {fmt(a.timestamp)}
+                                        </span>
+                                      </div>
+                                    ))}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Offline drivers with last seen */}
+      {offlineDrivers.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Offline Drivers</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Driver</TableHead>
+                  <TableHead>City</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Last Online</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {offlineDrivers.slice(0, 20).map((d, idx) => {
+                  const activity = getDriverActivity(d.id);
+                  const lastOnline = activity
+                    .filter((a) => a.status === "offline")
+                    .slice(-1)[0];
+                  return (
+                    <TableRow
+                      key={d.id}
+                      data-ocid={`admin.live_drivers.item.${onlineDrivers.length + idx + 1}`}
+                    >
+                      <TableCell className="font-medium text-sm">
+                        {d.name}
+                      </TableCell>
+                      <TableCell className="text-gray-600 text-sm">
+                        {d.city}
+                      </TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+                          <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                          Offline
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-gray-500 text-xs">
+                        {lastOnline ? fmt(lastOnline.timestamp) : "—"}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {onlineDrivers.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Live Map</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div
+              ref={mapRef}
+              style={{ height: "400px", width: "100%", borderRadius: "8px" }}
+              data-ocid="admin.live_drivers.canvas_target"
+            />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

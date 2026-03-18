@@ -75,7 +75,7 @@ export default function DriversPage() {
       {[1, 2, 3, 4, 5].map((s) => (
         <Star
           key={s}
-          size={11}
+          size={12}
           className={
             s <= Math.round(rating)
               ? "fill-yellow-400 text-yellow-400"
@@ -83,7 +83,9 @@ export default function DriversPage() {
           }
         />
       ))}
-      <span className="text-xs text-gray-500 ml-1">{rating.toFixed(1)}</span>
+      <span className="text-xs font-semibold text-gray-700 ml-1">
+        ★ {rating.toFixed(1)}
+      </span>
     </span>
   );
 
@@ -225,11 +227,21 @@ export default function DriversPage() {
             >
               <CardContent className="p-0">
                 <div className="bg-gradient-to-br from-gray-800 to-gray-900 p-4 flex items-center gap-3">
-                  <img
-                    src={driver.photoUrl}
-                    alt={driver.name}
-                    className="w-14 h-14 rounded-full bg-gray-600"
-                  />
+                  <div className="relative">
+                    <img
+                      src={driver.photoUrl}
+                      alt={driver.name}
+                      className="w-14 h-14 rounded-full bg-gray-600"
+                    />
+                    {driver.isVerified && (
+                      <span className="absolute -bottom-1 -right-1 bg-green-500 rounded-full w-5 h-5 flex items-center justify-center border-2 border-gray-900">
+                        <CheckCircle
+                          size={11}
+                          className="text-white fill-white"
+                        />
+                      </span>
+                    )}
+                  </div>
                   <div>
                     <div className="text-white font-semibold">
                       {driver.name}
@@ -265,8 +277,12 @@ export default function DriversPage() {
                       {driver.isAvailable ? "Available" : "Busy"}
                     </span>
                     {driver.isVerified && (
-                      <span className="flex items-center gap-0.5 text-green-600 text-xs">
-                        <CheckCircle size={11} /> Verified
+                      <span className="flex items-center gap-0.5 bg-green-50 border border-green-200 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+                        <CheckCircle
+                          size={10}
+                          className="fill-green-600 text-green-600"
+                        />{" "}
+                        ✓ Verified
                       </span>
                     )}
                   </div>

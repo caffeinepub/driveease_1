@@ -1,5 +1,3 @@
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
 import {
   AlertCircle,
   ArrowLeft,
@@ -9,14 +7,6 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import {
-  MapContainer,
-  Marker,
-  Polyline,
-  Popup,
-  TileLayer,
-  useMap,
-} from "react-leaflet";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -28,56 +18,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { useNavigate } from "../router";
 
-// Fix leaflet icon
-(L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl =
-  undefined;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
-  iconUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
-  shadowUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-});
-
-const pickupIcon = new L.Icon({
-  iconUrl:
-    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png",
-  shadowUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
-
-const dropIcon = new L.Icon({
-  iconUrl:
-    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
-  shadowUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
-
-const driverIcon = L.divIcon({
-  html: '<div style="font-size:26px;line-height:1;">🧑‍✈️</div>',
-  className: "",
-  iconSize: [32, 32],
-  iconAnchor: [16, 16],
-});
-
 type LatLng = [number, number];
-
-function MapRecenter({ center }: { center: LatLng }) {
-  const map = useMap();
-  useEffect(() => {
-    map.setView(center, map.getZoom());
-  }, [center, map]);
-  return null;
-}
 
 async function geocodeAddress(address: string): Promise<LatLng | null> {
   try {
@@ -92,19 +33,13 @@ async function geocodeAddress(address: string): Promise<LatLng | null> {
   return null;
 }
 
-async function fetchRoute(
-  from: LatLng,
-  to: LatLng,
-): Promise<{ coords: LatLng[]; steps: string[] }> {
+async function fetchRouteSteps(from: LatLng, to: LatLng): Promise<string[]> {
   try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson&steps=true`;
+    const url = `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=false&steps=true`;
     const res = await fetch(url);
     const data = await res.json();
     const route = data.routes?.[0];
-    if (!route) return { coords: [from, to], steps: [] };
-    const coords: LatLng[] = route.geometry.coordinates.map(
-      (c: [number, number]) => [c[1], c[0]] as LatLng,
-    );
+    if (!route) return [];
     const steps: string[] = [];
     for (const leg of route.legs ?? []) {
       for (const step of leg.steps ?? []) {
@@ -113,9 +48,9 @@ async function fetchRoute(
         else if (step.name) steps.push(`Continue on ${step.name}`);
       }
     }
-    return { coords, steps };
+    return steps;
   } catch {
-    return { coords: [from, to], steps: [] };
+    return [];
   }
 }
 
@@ -126,7 +61,6 @@ export default function DriverNavPage() {
   const [driverPos, setDriverPos] = useState<LatLng | null>(null);
   const [pickupPos, setPickupPos] = useState<LatLng | null>(null);
   const [dropPos, setDropPos] = useState<LatLng | null>(null);
-  const [routeCoords, setRouteCoords] = useState<LatLng[]>([]);
   const [steps, setSteps] = useState<string[]>([]);
   const [activeMode, setActiveMode] = useState<"pickup" | "drop">("pickup");
   const [geoError, setGeoError] = useState("");
@@ -168,8 +102,7 @@ export default function DriverNavPage() {
     const from: LatLng = driverPos ?? pLatLng ?? [28.6139, 77.209];
     const toPos = activeMode === "pickup" ? pLatLng : dLatLng;
     if (toPos) {
-      const { coords, steps: newSteps } = await fetchRoute(from, toPos);
-      setRouteCoords(coords);
+      const newSteps = await fetchRouteSteps(from, toPos);
       setSteps(newSteps);
     }
     setLoading(false);
@@ -180,18 +113,23 @@ export default function DriverNavPage() {
     const from = driverPos;
     const toPos = mode === "pickup" ? pickupPos : dropPos;
     if (from && toPos) {
-      const { coords, steps: newSteps } = await fetchRoute(from, toPos);
-      setRouteCoords(coords);
+      const newSteps = await fetchRouteSteps(from, toPos);
       setSteps(newSteps);
     }
   };
-
-  const mapCenter: LatLng = driverPos ?? pickupPos ?? [28.6139, 77.209];
 
   const activePos = activeMode === "pickup" ? pickupPos : dropPos;
   const gmapsUrl = activePos
     ? `https://www.google.com/maps/dir/?api=1&destination=${activePos[0]},${activePos[1]}&travelmode=driving`
     : "https://maps.google.com";
+
+  // Build map embed URL based on available data
+  const mapEmbedUrl =
+    pickupPos && dropPos
+      ? `https://www.google.com/maps/embed/v1/directions?key=AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY&origin=${pickupPos[0]},${pickupPos[1]}&destination=${dropPos[0]},${dropPos[1]}&mode=driving`
+      : driverPos
+        ? `https://www.google.com/maps/embed/v1/view?key=AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY&center=${driverPos[0]},${driverPos[1]}&zoom=14`
+        : "https://www.google.com/maps/embed/v1/view?key=AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY&center=28.6139,77.209&zoom=12";
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -300,42 +238,17 @@ export default function DriverNavPage() {
         </div>
       </div>
 
+      {/* Map */}
       <div style={{ height: "380px" }}>
-        <MapContainer
-          center={mapCenter}
-          zoom={13}
-          style={{ height: "100%", width: "100%" }}
-          scrollWheelZoom={false}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          <MapRecenter center={mapCenter} />
-          {routeCoords.length > 1 && (
-            <Polyline
-              positions={routeCoords}
-              color={activeMode === "pickup" ? "#16a34a" : "#dc2626"}
-              weight={4}
-              opacity={0.8}
-            />
-          )}
-          {driverPos && (
-            <Marker position={driverPos} icon={driverIcon}>
-              <Popup>You are here</Popup>
-            </Marker>
-          )}
-          {pickupPos && (
-            <Marker position={pickupPos} icon={pickupIcon}>
-              <Popup>Pickup: {pickupInput}</Popup>
-            </Marker>
-          )}
-          {dropPos && (
-            <Marker position={dropPos} icon={dropIcon}>
-              <Popup>Drop: {dropInput}</Popup>
-            </Marker>
-          )}
-        </MapContainer>
+        <iframe
+          title="Navigation Map"
+          width="100%"
+          height="100%"
+          style={{ border: 0 }}
+          loading="lazy"
+          allowFullScreen
+          src={mapEmbedUrl}
+        />
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-4 space-y-3">

@@ -1,7 +1,9 @@
 import {
   AlertCircle,
   Calendar,
+  Car,
   CheckCircle,
+  Clock,
   Copy,
   MapPin,
   Navigation,
@@ -31,6 +33,38 @@ import { useActor } from "../hooks/useActor";
 import { Link, useNavigate, usePath } from "../router";
 import { saveBooking } from "../utils/localStore";
 
+type BookingType = "hourly" | "daily" | "outstation";
+
+const BOOKING_TYPES: {
+  id: BookingType;
+  label: string;
+  desc: string;
+  rate: string;
+  icon: string;
+}[] = [
+  {
+    id: "hourly",
+    label: "Hourly",
+    desc: "Short errands & local trips",
+    rate: "₹200/hr",
+    icon: "⏱️",
+  },
+  {
+    id: "daily",
+    label: "Daily",
+    desc: "Full day office & city use",
+    rate: "₹1,200/day",
+    icon: "📅",
+  },
+  {
+    id: "outstation",
+    label: "Outstation",
+    desc: "Long distance trips",
+    rate: "₹2,500/day",
+    icon: "🛣️",
+  },
+];
+
 export default function BookingPage() {
   const path = usePath();
   const navigate = useNavigate();
@@ -38,6 +72,7 @@ export default function BookingPage() {
   const driverId = Number(path.split("/").pop());
   const driver = seedDrivers.find((d) => d.id === driverId);
 
+  const [bookingType, setBookingType] = useState<BookingType>("daily");
   const [form, setForm] = useState({
     customerName: "",
     customerPhone: "",
@@ -60,6 +95,11 @@ export default function BookingPage() {
   const [bookingId, setBookingId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState("");
+
+  // Login gate
+  const storedCustomer = localStorage.getItem("otp_customer");
+  const customer = storedCustomer ? JSON.parse(storedCustomer) : null;
+  const isLoggedIn = !!customer?.loggedIn;
 
   useEffect(() => {
     if (actor) {
@@ -87,7 +127,17 @@ export default function BookingPage() {
 
   const days = getDays();
   const pricePerDay = driver?.pricePerDay ?? 0;
-  const total = days * pricePerDay + (form.insurance ? 99 : 0);
+  const typeMultiplier =
+    bookingType === "outstation"
+      ? 2500 / 1200
+      : bookingType === "hourly"
+        ? 200 / 1200
+        : 1;
+  const effectivePrice =
+    bookingType === "daily"
+      ? pricePerDay
+      : Math.round(pricePerDay * typeMultiplier);
+  const total = days * effectivePrice + (form.insurance ? 99 : 0);
 
   const copyText = (text: string, key: string) => {
     navigator.clipboard.writeText(text).catch(() => {});
@@ -160,8 +210,68 @@ export default function BookingPage() {
         createdAt: new Date().toISOString(),
       });
       setBookingId(generatedId);
+      // Notify driver about new booking request
+      try {
+        const requests = JSON.parse(
+          localStorage.getItem("driver_booking_requests") || "[]",
+        );
+        requests.push({
+          id: generatedId,
+          driverId: driver.id,
+          customerName: form.customerName,
+          customerPhone: form.customerPhone,
+          pickup: form.pickupAddress,
+          drop: form.dropAddress,
+          amount: total,
+          bookingType,
+          status: "pending",
+          timestamp: Date.now(),
+        });
+        localStorage.setItem(
+          "driver_booking_requests",
+          JSON.stringify(requests),
+        );
+      } catch {
+        // ignore
+      }
     }
   };
+
+  // Login required check
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full text-center border border-gray-100">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Shield size={28} className="text-green-600" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">
+            Login Required
+          </h2>
+          <p className="text-gray-500 text-sm mb-6">
+            Please login to book a driver. Your safety and security is our
+            priority.
+          </p>
+          <div className="space-y-3">
+            <a
+              href="#/login"
+              className="block w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition-colors"
+              data-ocid="booking_gate.primary_button"
+            >
+              Login to Continue
+            </a>
+            <a
+              href="#/"
+              className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 rounded-xl transition-colors"
+              data-ocid="booking_gate.secondary_button"
+            >
+              Back to Home
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!driver)
     return (
@@ -191,9 +301,19 @@ export default function BookingPage() {
                 Your Booking ID is{" "}
                 <span className="font-bold text-green-700">#{bookingId}</span>
               </p>
-              <p className="text-gray-500 text-sm mb-4">
+              <p className="text-gray-500 text-sm mb-2">
                 Driver <strong>{driver.name}</strong> will contact you shortly.
               </p>
+              <div className="inline-flex items-center gap-2 bg-green-100 text-green-700 rounded-full px-4 py-1.5 text-sm font-semibold mb-4">
+                {bookingType === "hourly" ? (
+                  <Clock size={14} />
+                ) : bookingType === "outstation" ? (
+                  <Car size={14} />
+                ) : (
+                  <Calendar size={14} />
+                )}
+                {BOOKING_TYPES.find((t) => t.id === bookingType)?.label} Booking
+              </div>
               {form.insurance && (
                 <p className="text-sm text-green-600 mb-4">
                   Ride insurance (₹99) activated for this trip.
@@ -301,7 +421,7 @@ export default function BookingPage() {
               </div>
 
               <a
-                href={`https://wa.me/919999999999?text=I+have+completed+payment+for+booking+%23${bookingId}`}
+                href={`https://wa.me/917836887228?text=I+have+completed+payment+for+booking+%23${bookingId}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block w-full text-center bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-lg transition-colors"
@@ -346,6 +466,41 @@ export default function BookingPage() {
           <p className="text-gray-500 text-sm">
             {driver.city}, {driver.state} · ₹{driver.pricePerDay}/day
           </p>
+        </div>
+
+        {/* Booking Type Selector */}
+        <div className="mb-6">
+          <h2 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">
+            Select Booking Type
+          </h2>
+          <div className="grid grid-cols-3 gap-3">
+            {BOOKING_TYPES.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setBookingType(t.id)}
+                className={`flex flex-col items-center p-3 rounded-xl border-2 transition-all text-center ${
+                  bookingType === t.id
+                    ? "border-green-600 bg-green-50 shadow-sm"
+                    : "border-gray-200 bg-white hover:border-green-300"
+                }`}
+                data-ocid={`booking.toggle.${t.id}`}
+              >
+                <span className="text-2xl mb-1">{t.icon}</span>
+                <span
+                  className={`font-bold text-sm ${bookingType === t.id ? "text-green-700" : "text-gray-700"}`}
+                >
+                  {t.label}
+                </span>
+                <span className="text-xs text-gray-500 mt-0.5">{t.desc}</span>
+                <span
+                  className={`text-xs font-semibold mt-1 ${bookingType === t.id ? "text-green-600" : "text-gray-400"}`}
+                >
+                  {t.rate}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -581,10 +736,16 @@ export default function BookingPage() {
             <Card className="bg-green-50 border-green-200">
               <CardContent className="pt-4">
                 <div className="flex justify-between text-sm text-gray-600 mb-1">
-                  <span>
-                    ₹{pricePerDay}/day × {days} days
+                  <span className="font-medium text-green-800">
+                    {BOOKING_TYPES.find((t) => t.id === bookingType)?.label} ·{" "}
+                    {BOOKING_TYPES.find((t) => t.id === bookingType)?.rate}
                   </span>
-                  <span>₹{days * pricePerDay}</span>
+                </div>
+                <div className="flex justify-between text-sm text-gray-600 mb-1">
+                  <span>
+                    ₹{effectivePrice}/day × {days} days
+                  </span>
+                  <span>₹{days * effectivePrice}</span>
                 </div>
                 {form.insurance && (
                   <div className="flex justify-between text-sm text-gray-600 mb-1">

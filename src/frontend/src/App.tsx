@@ -6,11 +6,13 @@ import PWAInstallBanner from "./components/PWAInstallBanner";
 import { useActor } from "./hooks/useActor";
 import AdminDashboard from "./pages/AdminDashboard";
 import BookingPage from "./pages/BookingPage";
+import DriverLoginPage from "./pages/DriverLoginPage";
 import DriverNavPage from "./pages/DriverNavPage";
 import DriverRegistrationPage from "./pages/DriverRegistrationPage";
 import DriversPage from "./pages/DriversPage";
 import HomePage from "./pages/HomePage";
 import InsurancePage from "./pages/InsurancePage";
+import LiveDriversPage from "./pages/LiveDriversPage";
 import MyBookingsPage from "./pages/MyBookingsPage";
 import OtpLoginPage from "./pages/OtpLoginPage";
 import PaymentPage from "./pages/PaymentPage";
@@ -39,6 +41,7 @@ function AppContent() {
       <main className="flex-1 pb-20 md:pb-0">
         {path === "/" && <HomePage />}
         {path === "/drivers" && <DriversPage />}
+        {path === "/live-drivers" && <LiveDriversPage />}
         {path.startsWith("/book/") && <BookingPage />}
         {path === "/register-driver" && <DriverRegistrationPage />}
         {path === "/subscriptions" && <SubscriptionsPage />}
@@ -47,10 +50,12 @@ function AppContent() {
         {path === "/login" && <OtpLoginPage />}
         {path === "/payment" && <PaymentPage />}
         {path === "/driver-nav" && <DriverNavPage />}
+        {path === "/driver-login" && <DriverLoginPage />}
         {path.startsWith("/track/") && <TrackingPage />}
         {![
           "/",
           "/drivers",
+          "/live-drivers",
           "/register-driver",
           "/subscriptions",
           "/insurance",
@@ -60,13 +65,14 @@ function AppContent() {
           "/driver-nav",
         ].includes(path) &&
           !path.startsWith("/book/") &&
-          !path.startsWith("/track/") && <HomePage />}
+          !path.startsWith("/track/") &&
+          path !== "/driver-login" && <HomePage />}
       </main>
       <Footer />
       <BottomNav />
       {/* Floating WhatsApp Button */}
       <a
-        href="https://wa.me/919876543210"
+        href="https://wa.me/917836887228"
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-40 bg-[#25D366] hover:bg-[#20b558] text-white rounded-full w-14 h-14 flex items-center justify-center shadow-xl transition-transform hover:scale-110"

@@ -1,7 +1,12 @@
-import { AlertCircle, CheckCircle, Clock, Shield, XCircle } from "lucide-react";
-import { useEffect, useState } from "react";
-import type { Booking } from "../backend";
-import { BookingStatus } from "../backend";
+import {
+  AlertCircle,
+  CheckCircle,
+  Clock,
+  MessageSquare,
+  Star,
+  XCircle,
+} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import {
@@ -10,52 +15,201 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
+import { Textarea } from "../components/ui/textarea";
 import { seedDrivers } from "../data/drivers";
-import { useActor } from "../hooks/useActor";
 import { Link } from "../router";
 
+interface LocalBooking {
+  id: number;
+  status: string;
+  customerName: string;
+  customerPhone?: string;
+  pickupAddress: string;
+  dropAddress: string;
+  total: number;
+  startDate: string;
+  endDate?: string;
+  driverName: string;
+  driverId?: number;
+  bookingType?: string;
+  days?: number;
+  createdAt?: string;
+}
+
+interface FeedbackRecord {
+  bookingId: number;
+  driverId?: number;
+  driverName: string;
+  rating: number;
+  comment: string;
+  customerPhone: string;
+  date: string;
+}
+
+function getFeedback(): FeedbackRecord[] {
+  try {
+    return JSON.parse(localStorage.getItem("driveease_feedback") || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveFeedback(rec: FeedbackRecord) {
+  const all = getFeedback().filter((f) => f.bookingId !== rec.bookingId);
+  localStorage.setItem("driveease_feedback", JSON.stringify([...all, rec]));
+}
+
+function getCustomerPhone(): string {
+  try {
+    const p = localStorage.getItem("driveease_customer_phone");
+    if (p) return p;
+    const otp = JSON.parse(localStorage.getItem("otp_customer") || "null");
+    if (otp?.phone) return otp.phone;
+    const users = JSON.parse(
+      localStorage.getItem("driveease_otp_users") || "[]",
+    );
+    if (users.length > 0) return users[0].phone ?? "";
+  } catch {
+    /* */
+  }
+  return "";
+}
+
+function getLocalBookings(): LocalBooking[] {
+  try {
+    const a = JSON.parse(localStorage.getItem("driveease_bookings") || "[]");
+    const b = JSON.parse(
+      localStorage.getItem("driveease_all_bookings") || "[]",
+    );
+    const merged = [...a, ...b];
+    // deduplicate by id
+    const seen = new Set<number>();
+    return merged.filter((x) => {
+      if (seen.has(x.id)) return false;
+      seen.add(x.id);
+      return true;
+    });
+  } catch {
+    return [];
+  }
+}
+
 export default function MyBookingsPage() {
-  const { actor } = useActor();
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [bookings, setBookings] = useState<LocalBooking[]>([]);
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [feedback, setFeedback] = useState<FeedbackRecord[]>(getFeedback());
+  const [notifications, setNotifications] = useState<
+    Array<{
+      bookingId: number;
+      message: string;
+      read: boolean;
+      timestamp: number;
+    }>
+  >([]);
+
+  // Feedback modal
+  const [feedbackModal, setFeedbackModal] = useState<{
+    bookingId: number;
+    driverName: string;
+    driverId?: number;
+  } | null>(null);
+  const [stars, setStars] = useState(5);
+  const [comment, setComment] = useState("");
+  const [feedbackSent, setFeedbackSent] = useState(false);
+
+  const reload = useCallback(() => {
+    const phone = getCustomerPhone();
+    setCustomerPhone(phone);
+    const all = getLocalBookings();
+    // Show all if no phone, else filter by phone
+    const filtered = phone
+      ? all.filter((b) => !b.customerPhone || b.customerPhone === phone)
+      : all;
+    setBookings(filtered);
+    try {
+      const notifs = JSON.parse(
+        localStorage.getItem("booking_notifications") || "[]",
+      );
+      setNotifications(notifs);
+    } catch {
+      /* */
+    }
+    setFeedback(getFeedback());
+  }, []);
 
   useEffect(() => {
-    if (actor) {
-      actor
-        .getBookingsByCustomer()
-        .then(setBookings)
-        .catch(() => {})
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
-  }, [actor]);
+    reload();
+    const iv = setInterval(reload, 5000);
+    return () => clearInterval(iv);
+  }, [reload]);
 
-  const handleSOS = async (id: bigint) => {
-    if (!actor) return;
+  const markAllRead = () => {
     try {
-      await actor.markSosForBooking(id);
-      alert(
-        "SOS sent! Emergency services have been notified. Also call 108 for ambulance.",
+      const notifs = JSON.parse(
+        localStorage.getItem("booking_notifications") || "[]",
       );
+      const updated = notifs.map((n: { read: boolean }) => ({
+        ...n,
+        read: true,
+      }));
+      localStorage.setItem("booking_notifications", JSON.stringify(updated));
+      setNotifications(updated);
     } catch {
-      alert("Failed to send SOS. Please call 108 directly.");
+      /* */
     }
   };
 
-  const statusBadge = (status: BookingStatus) => {
-    if (status === BookingStatus.confirmed)
+  const handleFeedbackSubmit = () => {
+    if (!feedbackModal) return;
+    const rec: FeedbackRecord = {
+      bookingId: feedbackModal.bookingId,
+      driverId: feedbackModal.driverId,
+      driverName: feedbackModal.driverName,
+      rating: stars,
+      comment,
+      customerPhone,
+      date: new Date().toISOString(),
+    };
+    saveFeedback(rec);
+    setFeedback(getFeedback());
+    setFeedbackSent(true);
+    setTimeout(() => {
+      setFeedbackModal(null);
+      setFeedbackSent(false);
+      setStars(5);
+      setComment("");
+    }, 1800);
+  };
+
+  const hasFeedback = (bookingId: number) =>
+    feedback.some((f) => f.bookingId === bookingId);
+
+  const statusBadge = (status: string) => {
+    if (status === "confirmed")
       return (
         <Badge className="bg-green-100 text-green-700">
           <CheckCircle size={10} className="mr-1" />
           Confirmed
         </Badge>
       );
-    if (status === BookingStatus.cancelled)
+    if (status === "rejected" || status === "cancelled")
       return (
         <Badge className="bg-red-100 text-red-700">
           <XCircle size={10} className="mr-1" />
           Cancelled
+        </Badge>
+      );
+    if (status === "completed")
+      return (
+        <Badge className="bg-blue-100 text-blue-700">
+          <CheckCircle size={10} className="mr-1" />
+          Completed
         </Badge>
       );
     return (
@@ -66,90 +220,245 @@ export default function MyBookingsPage() {
     );
   };
 
-  if (loading)
-    return (
-      <div className="text-center py-20 text-gray-500">
-        Loading your bookings...
-      </div>
-    );
+  const unread = notifications.filter((n) => !n.read);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-3xl mx-auto">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">My Bookings</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">My Bookings</h1>
+        <p className="text-gray-500 text-sm mb-6">
+          Your past and upcoming driver bookings
+        </p>
+
+        {/* Notification Banner */}
+        {unread.length > 0 && (
+          <div
+            className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-start justify-between gap-3"
+            data-ocid="bookings.success_state"
+          >
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">🎉</span>
+              <div>
+                {unread.map((n) => (
+                  <p
+                    key={n.bookingId}
+                    className="text-green-800 font-medium text-sm"
+                  >
+                    {n.message} Booking ID: #{n.bookingId}
+                  </p>
+                ))}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={markAllRead}
+              className="text-xs text-green-600 hover:text-green-800 font-medium whitespace-nowrap border border-green-300 rounded-lg px-2 py-1"
+              data-ocid="bookings.secondary_button"
+            >
+              Mark as read
+            </button>
+          </div>
+        )}
+
         {bookings.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-gray-500">No bookings yet.</p>
-            <Link to="/drivers" className="text-green-600 underline mt-2 block">
+          <div className="text-center py-16" data-ocid="bookings.empty_state">
+            <AlertCircle size={40} className="mx-auto mb-3 text-gray-300" />
+            <p className="text-gray-500 font-medium">No bookings yet.</p>
+            <p className="text-gray-400 text-sm mt-1">
+              Book a driver to see your booking history here.
+            </p>
+            <Link to="/drivers" className="text-green-600 underline mt-3 block">
               Find a driver
             </Link>
           </div>
         ) : (
           <div className="space-y-4">
-            {bookings.map((b) => {
+            {bookings.map((b, idx) => {
               const driver = seedDrivers.find(
                 (d) => d.id === Number(b.driverId),
               );
+              const driverName =
+                b.driverName || driver?.name || `Driver #${b.driverId}`;
+              const isCompleted =
+                b.status === "confirmed" || b.status === "completed";
               return (
-                <Card key={b.id.toString()} className="shadow-sm">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">
-                        Booking #{b.id.toString()}
-                      </CardTitle>
-                      {statusBadge(b.status)}
+                <div
+                  key={b.id}
+                  className="bg-white rounded-xl border border-gray-200 shadow-sm p-5"
+                  data-ocid={`bookings.item.${idx + 1}`}
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <p className="font-bold text-gray-900">Booking #{b.id}</p>
+                      <p className="text-gray-500 text-xs mt-0.5">
+                        {driverName}
+                      </p>
+                      {b.bookingType && (
+                        <span className="text-xs bg-green-50 text-green-700 border border-green-200 rounded px-1.5 py-0.5 mt-1 inline-block">
+                          {b.bookingType}
+                        </span>
+                      )}
                     </div>
-                  </CardHeader>
-                  <CardContent className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Driver</span>
-                      <span className="font-medium">
-                        {driver?.name ?? `Driver #${b.driverId}`}
-                      </span>
+                    {statusBadge(b.status)}
+                  </div>
+
+                  <div className="space-y-1 text-sm">
+                    <p className="text-gray-600">📍 {b.pickupAddress}</p>
+                    <p className="text-gray-600">🏁 {b.dropAddress}</p>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between">
+                    <div className="text-xs text-gray-400">
+                      <p>
+                        {b.startDate}
+                        {b.endDate && b.endDate !== b.startDate
+                          ? ` → ${b.endDate}`
+                          : ""}
+                      </p>
+                      {b.days && b.days > 0 && (
+                        <p>
+                          {b.days} day{b.days > 1 ? "s" : ""}
+                        </p>
+                      )}
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Route</span>
-                      <span className="text-right max-w-xs text-xs">
-                        {b.pickupAddress} → {b.dropAddress}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Days</span>
-                      <span>{b.daysCount.toString()} days</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Total</span>
-                      <span className="font-bold text-green-700">
-                        ₹{b.totalPrice.toString()}
-                      </span>
-                    </div>
-                    {b.insuranceOpted && (
-                      <div className="flex items-center gap-1 text-green-600 text-xs">
-                        <Shield size={12} />
-                        Insurance active for this ride
-                      </div>
-                    )}
-                    {b.feedbackMessage && (
-                      <div className="bg-blue-50 rounded p-2 text-blue-700 text-xs">
-                        {b.feedbackMessage}
-                      </div>
-                    )}
-                    {b.status === BookingStatus.confirmed && (
+                    <p className="text-green-600 font-bold text-base">
+                      ₹{b.total?.toLocaleString("en-IN")}
+                    </p>
+                  </div>
+
+                  <div className="mt-3 flex gap-2">
+                    {isCompleted && !hasFeedback(b.id) && (
                       <Button
-                        onClick={() => handleSOS(b.id)}
                         size="sm"
-                        className="bg-red-600 hover:bg-red-500 text-white"
+                        variant="outline"
+                        onClick={() => {
+                          setFeedbackModal({
+                            bookingId: b.id,
+                            driverName,
+                            driverId: b.driverId,
+                          });
+                          setStars(5);
+                          setComment("");
+                          setFeedbackSent(false);
+                        }}
+                        className="text-xs border-green-300 text-green-700 hover:bg-green-50 gap-1"
+                        data-ocid={`bookings.edit_button.${idx + 1}`}
                       >
-                        <AlertCircle size={14} className="mr-1" /> Emergency SOS
+                        <MessageSquare size={12} /> Give Feedback
                       </Button>
                     )}
-                  </CardContent>
-                </Card>
+                    {hasFeedback(b.id) && (
+                      <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                        <CheckCircle size={12} /> Feedback submitted
+                      </span>
+                    )}
+                    <Button
+                      asChild
+                      size="sm"
+                      variant="outline"
+                      className="text-xs border-gray-300 text-gray-600 hover:bg-gray-50"
+                    >
+                      <Link to={`/track/${b.id}`}>Track Ride</Link>
+                    </Button>
+                  </div>
+                </div>
               );
             })}
           </div>
         )}
       </div>
+
+      {/* Feedback Modal */}
+      <Dialog
+        open={!!feedbackModal}
+        onOpenChange={(open) => {
+          if (!open) setFeedbackModal(null);
+        }}
+      >
+        <DialogContent data-ocid="bookings.dialog">
+          <DialogHeader>
+            <DialogTitle>Rate Your Experience</DialogTitle>
+          </DialogHeader>
+          {feedbackSent ? (
+            <div
+              className="text-center py-8"
+              data-ocid="bookings.success_state"
+            >
+              <CheckCircle size={48} className="mx-auto text-green-500 mb-3" />
+              <p className="text-lg font-semibold text-gray-900">
+                Thank you for your feedback!
+              </p>
+              <p className="text-gray-500 text-sm mt-1">
+                Your review helps improve driver quality.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">
+                  Driver:{" "}
+                  <span className="font-semibold text-gray-900">
+                    {feedbackModal?.driverName}
+                  </span>
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">
+                  Your Rating
+                </p>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setStars(s)}
+                      className="p-1 transition-transform hover:scale-110"
+                      data-ocid="bookings.toggle"
+                    >
+                      <Star
+                        size={28}
+                        className={
+                          s <= stars
+                            ? "fill-yellow-400 text-yellow-400"
+                            : "text-gray-300"
+                        }
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">
+                  Comment (optional)
+                </p>
+                <Textarea
+                  placeholder="Share your experience with this driver..."
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  rows={3}
+                  data-ocid="bookings.textarea"
+                />
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  onClick={handleFeedbackSubmit}
+                  className="flex-1 bg-green-600 hover:bg-green-500 text-white"
+                  data-ocid="bookings.submit_button"
+                >
+                  Submit Feedback
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setFeedbackModal(null)}
+                  data-ocid="bookings.cancel_button"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

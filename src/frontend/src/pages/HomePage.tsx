@@ -403,9 +403,9 @@ export default function HomePage() {
           <Card className="bg-gray-800 border-gray-700 shadow-2xl max-w-sm mx-auto">
             <CardContent className="pt-8 pb-6 text-center">
               <img
-                src="https://api.dicebear.com/7.x/avataaars/svg?seed=Himanshu"
+                src="/assets/uploads/image-1.png"
                 alt="Himanshu Thakur"
-                className="w-24 h-24 rounded-full mx-auto mb-4 bg-gray-600 border-4 border-green-600/40"
+                className="w-24 h-24 rounded-full mx-auto mb-4 bg-gray-600 border-4 border-green-600/40 object-cover"
               />
               <Badge className="bg-green-600 text-white text-xs mb-3 px-3 py-1">
                 Official Brand Ambassador
@@ -414,14 +414,229 @@ export default function HomePage() {
                 Himanshu Thakur
               </h3>
               <p className="text-green-400 text-sm mb-4">
-                Brand Ambassador, DriveEase
+                Brand Ambassador - DriveEase
               </p>
               <blockquote className="text-gray-300 text-sm italic leading-relaxed border-l-2 border-green-600 pl-4 text-left">
-                "DriveEase is changing how India travels. Trusted, verified, and
-                always on time."
+                "DriveEase is transforming how India connects with trusted
+                professional drivers."
               </blockquote>
             </CardContent>
           </Card>
+        </div>
+      </section>
+
+      {/* Customer Support Section */}
+      <section className="py-12 px-4 bg-green-50">
+        <div className="max-w-2xl mx-auto text-center">
+          <Badge className="bg-green-600 text-white mb-4 text-xs px-3 py-1">
+            24/7 Support
+          </Badge>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Need Help? Contact Us Directly
+          </h2>
+          <p className="text-gray-500 text-sm mb-6">
+            Our support team is available around the clock for any query
+          </p>
+          <Card className="shadow-md border border-green-200 max-w-sm mx-auto">
+            <CardContent className="pt-6 pb-6">
+              <div className="flex items-center gap-4 mb-5">
+                <div className="w-14 h-14 rounded-full bg-green-50 border-2 border-green-500 flex items-center justify-center flex-shrink-0">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    className="w-7 h-7 text-green-600"
+                    aria-label="IT Support"
+                  >
+                    <title>IT Support</title>
+                    <rect x="2" y="3" width="20" height="14" rx="2" />
+                    <path d="M8 21h8M12 17v4" />
+                    <path d="M9 8l2 2-2 2M13 10h2" />
+                  </svg>
+                </div>
+                <div className="text-left">
+                  <p className="font-bold text-gray-900">Krishna Pandey</p>
+                  <p className="text-xs text-green-600 font-medium">
+                    Customer Support Lead
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Available 24/7 for any query
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <a
+                  href="tel:+917836887228"
+                  className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-lg transition-colors text-sm"
+                  data-ocid="support.primary_button"
+                >
+                  <Phone size={15} />
+                  Call Now
+                </a>
+                <a
+                  href="https://wa.me/917836887228"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20b558] text-white font-semibold py-2.5 rounded-lg transition-colors text-sm"
+                  data-ocid="support.secondary_button"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    className="w-4 h-4"
+                    aria-label="WhatsApp"
+                  >
+                    <title>WhatsApp</title>
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                  </svg>
+                  WhatsApp
+                </a>
+              </div>
+              <p className="text-xs text-center text-gray-400 mt-3">
+                +91-7836887228
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* How We Create Value Section */}
+      <section className="py-16 px-4 bg-white">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-10">
+            <Badge className="bg-green-100 text-green-700 mb-3 text-xs px-3 py-1">
+              Business Model
+            </Badge>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">
+              How We Create Value
+            </h2>
+            <p className="text-gray-500">
+              A sustainable platform built for drivers and customers alike
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {[
+              {
+                icon: "💸",
+                title: "Commission per Trip",
+                desc: "We take a 15–20% cut from every booking. Scales with your usage.",
+                highlight: "15–20%",
+                label: "per booking",
+              },
+              {
+                icon: "📅",
+                title: "Subscription Plans",
+                desc: "Monthly plans like ₹999/month for Priority Booking & Zero Surge.",
+                highlight: "₹999/mo",
+                label: "starting from",
+              },
+              {
+                icon: "🏢",
+                title: "Corporate Contracts",
+                desc: "Partner with companies for executive daily commutes. High-volume, stable revenue.",
+                highlight: "B2B",
+                label: "partnerships",
+              },
+              {
+                icon: "🪪",
+                title: "Driver Onboarding Fee",
+                desc: "One-time ₹150 background verification & training fee for serious drivers.",
+                highlight: "₹150",
+                label: "one-time",
+              },
+            ].map((item) => (
+              <Card
+                key={item.title}
+                className="border border-green-100 hover:shadow-md transition-shadow"
+              >
+                <CardContent className="pt-6 pb-5">
+                  <div className="text-3xl mb-3">{item.icon}</div>
+                  <div className="flex items-baseline gap-1 mb-2">
+                    <span className="text-2xl font-black text-green-600">
+                      {item.highlight}
+                    </span>
+                    <span className="text-xs text-gray-400">{item.label}</span>
+                  </div>
+                  <h3 className="font-bold text-gray-900 mb-1.5 text-sm">
+                    {item.title}
+                  </h3>
+                  <p className="text-xs text-gray-500 leading-relaxed">
+                    {item.desc}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Why Trust DriveEase Section */}
+      <section className="py-16 px-4 bg-gray-900">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-10">
+            <Badge className="bg-green-600/20 text-green-400 border border-green-600/40 mb-3 text-xs px-3 py-1">
+              Safety First
+            </Badge>
+            <h2 className="text-3xl font-bold text-white mb-2">
+              Why Trust DriveEase?
+            </h2>
+            <p className="text-gray-400">
+              Built with your safety and peace of mind at the core
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {[
+              {
+                icon: "🛡️",
+                title: "Background Verification",
+                desc: "Every driver undergoes thorough police verification, Aadhaar check, and criminal background screening. A green 'Verified' badge means you can trust your driver completely.",
+                badge: "# 1 Safety Priority",
+              },
+              {
+                icon: "⭐",
+                title: "Rating System",
+                desc: "Two-way ratings keep quality high. Rate your driver after every trip, and drivers rate passengers too — maintaining a respectful community for everyone.",
+                badge: "Quality Control",
+              },
+              {
+                icon: "🆘",
+                title: "SOS Safety Button",
+                desc: "One tap connects you to 112 (Emergency), 108 (Ambulance), and 100 (Police). Critical for solo travelers, female passengers, and late-night trips.",
+                badge: "2026 Safety Standard",
+              },
+              {
+                icon: "🗺️",
+                title: "Multiple Booking Types",
+                desc: "Book by the Hour for short errands, Daily for office use, or Outstation for long trips. Flexible plans that fit your lifestyle — not the other way around.",
+                badge: "Flexible",
+              },
+            ].map((item) => (
+              <Card
+                key={item.title}
+                className="bg-gray-800 border-gray-700 hover:border-green-600/40 transition-all"
+              >
+                <CardContent className="pt-6 pb-5">
+                  <div className="flex items-start gap-4">
+                    <div className="text-3xl flex-shrink-0">{item.icon}</div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <h3 className="font-bold text-white text-base">
+                          {item.title}
+                        </h3>
+                        <Badge className="bg-green-600/20 text-green-400 border border-green-600/30 text-xs px-2 py-0">
+                          {item.badge}
+                        </Badge>
+                      </div>
+                      <p className="text-gray-400 text-sm leading-relaxed">
+                        {item.desc}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -531,7 +746,7 @@ export default function HomePage() {
                   After payment, send screenshot to WhatsApp for confirmation
                 </p>
                 <a
-                  href="https://wa.me/919876543210"
+                  href="https://wa.me/917836887228"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-block mt-3 text-sm text-green-700 font-semibold underline"

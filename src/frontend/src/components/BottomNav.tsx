@@ -1,9 +1,10 @@
-import { Calendar, Home, User, Users } from "lucide-react";
+import { Calendar, Home, Radio, User, Users } from "lucide-react";
 import { useNavigate, usePath } from "../router";
 
 const tabs = [
   { label: "Home", icon: Home, path: "/" },
   { label: "Drivers", icon: Users, path: "/drivers" },
+  { label: "Live", icon: Radio, path: "/live-drivers" },
   { label: "Bookings", icon: Calendar, path: "/my-bookings" },
   { label: "Account", icon: User, path: "/login" },
 ];
@@ -26,7 +27,7 @@ export default function BottomNav() {
             key={tabPath}
             type="button"
             onClick={() => navigate(tabPath)}
-            className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors"
+            className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors relative"
             data-ocid={`bottom_nav.${label.toLowerCase()}.tab`}
             aria-label={label}
           >
@@ -44,6 +45,10 @@ export default function BottomNav() {
             </span>
             {isActive && (
               <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-green-600 rounded-full" />
+            )}
+            {/* Pulsing dot for Live tab */}
+            {label === "Live" && !isActive && (
+              <span className="absolute top-1.5 right-1/4 w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
             )}
           </button>
         );
