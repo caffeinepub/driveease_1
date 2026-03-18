@@ -1,0 +1,43 @@
+{
+  "name": "DriveEase - Personal Driver Network",
+  "short_name": "DriveEase",
+  "description": "India's first personal driver network. Trusted, verified drivers for your family.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#16a34a",
+  "lang": "en-IN",
+  "categories": ["travel", "transportation", "lifestyle"],
+  "icons": [
+    {
+      "src": "/assets/generated/driveease-icon.dim_512x512.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/generated/driveease-icon.dim_512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Book a Driver",
+      "short_name": "Book",
+      "description": "Book a trusted personal driver",
+      "url": "/drivers",
+      "icons": [{"src": "/assets/generated/driveease-icon.dim_512x512.png", "sizes": "512x512"}]
+    },
+    {
+      "name": "My Bookings",
+      "short_name": "Bookings",
+      "description": "View your bookings",
+      "url": "/my-bookings",
+      "icons": [{"src": "/assets/generated/driveease-icon.dim_512x512.png", "sizes": "512x512"}]
+    }
+  ]
+}
