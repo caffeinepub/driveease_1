@@ -10,6 +10,7 @@ import {
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { useActor } from "../hooks/useActor";
+import { apiSaveEnquiry } from "../utils/backendApi";
 import { saveEnquiry } from "../utils/localStore";
 
 const plans = [
@@ -113,6 +114,16 @@ export default function SubscriptionsPage() {
         submittedAt: new Date().toISOString(),
         status: "new",
       });
+      apiSaveEnquiry({
+        name: form.name,
+        phone: form.phone,
+        email: form.email,
+        planType: selected,
+        city: form.city,
+        familyMembers: Number(form.members) || 1,
+        message: form.message,
+        submittedAt: new Date().toISOString(),
+      }).catch(() => {});
       setSuccess(true);
     }
   };

@@ -11,6 +11,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { useActor } from "../hooks/useActor";
 import { useNavigate } from "../router";
+import { apiSaveOtpLogin } from "../utils/backendApi";
 import { saveOtpLogin } from "../utils/localStore";
 
 type Step = "phone" | "otp";
@@ -102,6 +103,7 @@ export default function OtpLoginPage() {
         phone,
         loginTime: new Date().toISOString(),
       });
+      apiSaveOtpLogin(name, phone, new Date().toISOString()).catch(() => {});
       localStorage.setItem(
         "otp_customer",
         JSON.stringify({ name, phone, loggedIn: true }),

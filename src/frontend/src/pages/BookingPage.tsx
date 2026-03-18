@@ -31,6 +31,7 @@ import {
 import { seedDrivers } from "../data/drivers";
 import { useActor } from "../hooks/useActor";
 import { Link, useNavigate, usePath } from "../router";
+import { apiSaveBooking } from "../utils/backendApi";
 import { saveBooking } from "../utils/localStore";
 
 type BookingType = "hourly" | "daily" | "outstation";
@@ -65,12 +66,65 @@ const BOOKING_TYPES: {
   },
 ];
 
+type DriverData = (typeof seedDrivers)[0];
+
+function lookupDriver(path: string): DriverData | undefined {
+  const lastSegment = path.split("/").pop() || "";
+  const isRegisteredDriver = lastSegment.startsWith("reg-");
+  if (isRegisteredDriver) {
+    const regPhone = lastSegment.replace("reg-", "");
+    try {
+      const regs: Array<{
+        id: number;
+        name: string;
+        phone: string;
+        email?: string;
+        city: string;
+        state: string;
+        status: string;
+      }> = JSON.parse(localStorage.getItem("driveease_registrations") || "[]");
+      const reg = regs.find((r) => r.phone === regPhone);
+      if (reg) {
+        return {
+          id:
+            reg.id ||
+            Math.abs(
+              reg.phone.split("").reduce((a, c) => a + c.charCodeAt(0), 0) %
+                99999,
+            ),
+          name: reg.name,
+          city: reg.city,
+          state: reg.state,
+          experienceYears: 2,
+          languages: ["Hindi", "English"],
+          rating: 4.5,
+          pricePerDay: 1200,
+          isAvailable: true,
+          isVerified: reg.status === "approved",
+          trustBadges: ["Background Verified"],
+          phone: reg.phone,
+          photoUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(reg.name)}&background=16a34a&color=fff&size=128`,
+          vehicleType: "Personal Car / Sedan",
+        } as unknown as DriverData;
+      }
+    } catch {
+      /* ignore */
+    }
+    return undefined;
+  }
+  const driverId = Number(lastSegment);
+  return seedDrivers.find((d) => d.id === driverId);
+}
+
 export default function BookingPage() {
   const path = usePath();
   const navigate = useNavigate();
   const { actor } = useActor();
-  const driverId = Number(path.split("/").pop());
-  const driver = seedDrivers.find((d) => d.id === driverId);
+  const driver = lookupDriver(path);
+  const lastSegment = path.split("/").pop() || "";
+  const regPhone = lastSegment.startsWith("reg-")
+    ? lastSegment.replace("reg-", "")
+    : "";
 
   const [bookingType, setBookingType] = useState<BookingType>("daily");
   const [form, setForm] = useState({
@@ -195,6 +249,8 @@ export default function BookingPage() {
         customerEmail: form.customerEmail,
         driverName: driver.name,
         driverId: driver.id,
+        driverPhone:
+          (driver as unknown as { phone?: string }).phone || regPhone || "",
         pickupAddress: form.pickupAddress,
         dropAddress: form.dropAddress,
         pickupLat: pickupLat ?? undefined,
@@ -209,6 +265,25 @@ export default function BookingPage() {
         status: "pending",
         createdAt: new Date().toISOString(),
       });
+      // Also save to backend (fire-and-forget)
+      apiSaveBooking({
+        customerName: form.customerName,
+        customerPhone: form.customerPhone,
+        customerEmail: form.customerEmail,
+        driverName: driver.name,
+        driverId: String(driver.id),
+        driverPhone:
+          (driver as unknown as { phone?: string }).phone || regPhone || "",
+        pickupAddress: form.pickupAddress,
+        dropAddress: form.dropAddress,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        days,
+        total,
+        insurance: form.insurance,
+        status: "pending",
+        createdAt: new Date().toISOString(),
+      }).catch(() => {});
       setBookingId(generatedId);
       // Notify driver about new booking request
       try {
@@ -218,6 +293,8 @@ export default function BookingPage() {
         requests.push({
           id: generatedId,
           driverId: driver.id,
+          driverPhone:
+            (driver as unknown as { phone?: string }).phone || regPhone || "",
           customerName: form.customerName,
           customerPhone: form.customerPhone,
           pickup: form.pickupAddress,

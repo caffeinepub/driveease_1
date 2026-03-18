@@ -16,6 +16,10 @@ import { Card, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { indianCities, seedDrivers } from "../data/drivers";
 import { Link } from "../router";
+import {
+  apiGetOnlineDrivers,
+  apiGetRegistrations as apiGetRegs,
+} from "../utils/backendApi";
 import { getRegistrations } from "../utils/localStore";
 
 interface LiveDriver {
@@ -49,12 +53,33 @@ function getOnlineDriverIds(): Set<string> {
   }
 }
 
-function buildLiveDrivers(): LiveDriver[] {
+async function buildLiveDrivers(): Promise<LiveDriver[]> {
   const onlineIds = getOnlineDriverIds();
 
-  // Seed drivers that are available
+  // Fetch backend data in parallel
+  const [backendOnlineDrivers, backendRegs] = await Promise.all([
+    apiGetOnlineDrivers().catch(() => []),
+    apiGetRegs().catch(() => []),
+  ]);
+
+  // Build set of backend online phones/ids
+  const backendOnlineSet = new Set<string>();
+  for (const s of backendOnlineDrivers) {
+    if (s.status === "online") {
+      backendOnlineSet.add(s.phone);
+      backendOnlineSet.add(s.driverId);
+    }
+  }
+
+  // Seed drivers that are available or online
   const seedLive: LiveDriver[] = seedDrivers
-    .filter((d) => d.isAvailable || onlineIds.has(String(d.id)))
+    .filter(
+      (d) =>
+        d.isAvailable ||
+        onlineIds.has(String(d.id)) ||
+        backendOnlineSet.has(String(d.id)) ||
+        backendOnlineSet.has(d.phone ?? ""),
+    )
     .map((d) => ({
       id: d.id,
       name: d.name,
@@ -70,21 +95,29 @@ function buildLiveDrivers(): LiveDriver[] {
       isVerified: d.isVerified,
     }));
 
+  // Merge backend regs with localStorage regs
+  const allRegs = [...backendRegs];
+  const regPhones = new Set(allRegs.map((r) => r.phone));
+  for (const r of getRegistrations()) {
+    if (!regPhones.has(r.phone)) allRegs.push(r);
+  }
+
   // Registered drivers (approved or online)
-  const regs = getRegistrations();
-  const registeredLive: LiveDriver[] = regs
+  const registeredLive: LiveDriver[] = allRegs
     .filter(
       (r) =>
         r.status === "approved" ||
         onlineIds.has(String(r.id)) ||
-        onlineIds.has(r.phone),
+        onlineIds.has(r.phone) ||
+        backendOnlineSet.has(String(r.id)) ||
+        backendOnlineSet.has(r.phone),
     )
     .map((r) => ({
       id: `reg-${r.id}`,
       name: r.name,
       phone: r.phone,
       city: r.city,
-      state: r.state,
+      state: r.state ?? "",
       rating: 4.5,
       experienceYears: 2,
       pricePerDay: 1200,
@@ -110,11 +143,17 @@ export default function LiveDriversPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [liveDrivers, setLiveDrivers] = useState<LiveDriver[]>([]);
+  const [expandedDriver, setExpandedDriver] = useState<string | number | null>(
+    null,
+  );
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const reload = useCallback(() => {
-    setLiveDrivers(buildLiveDrivers());
+  const reload = useCallback(async () => {
+    const drivers = await buildLiveDrivers();
+    setLiveDrivers(drivers);
     setRefreshKey((k) => k + 1);
+    setLastUpdated(new Date());
   }, []);
 
   useEffect(() => {
@@ -160,6 +199,15 @@ export default function LiveDriversPage() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  const maskPhone = (phone: string) => {
+    if (!phone || phone.length < 6) return phone;
+    const clean = phone.replace(/^(\+91|91)/, "");
+    if (clean.length >= 10) {
+      return `${clean.slice(0, 2)}****${clean.slice(-4)}`;
+    }
+    return `${phone.slice(0, 2)}****${phone.slice(-2)}`;
+  };
 
   const renderStars = (rating: number) => (
     <span className="flex items-center gap-0.5">
@@ -267,16 +315,22 @@ export default function LiveDriversPage() {
                 <span>Showing all available drivers across India</span>
               )}
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={reload}
-              className="border-gray-700 text-gray-400 hover:text-white hover:border-green-600 gap-1.5"
-              data-ocid="live_drivers.secondary_button"
-            >
-              <RefreshCw size={13} />
-              Refresh
-            </Button>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-gray-600">
+                Updated{" "}
+                {Math.round((Date.now() - lastUpdated.getTime()) / 1000)}s ago
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={reload}
+                className="border-gray-700 text-gray-400 hover:text-white hover:border-green-600 gap-1.5"
+                data-ocid="live_drivers.secondary_button"
+              >
+                <RefreshCw size={13} />
+                Refresh
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -396,7 +450,7 @@ export default function LiveDriversPage() {
                           <div className="flex justify-between text-sm">
                             <span className="flex items-center gap-1 text-gray-500">
                               <Clock size={12} />
-                              {driver.experienceYears} yrs
+                              {driver.experienceYears} yrs exp
                             </span>
                             <span className="font-bold text-green-400">
                               ₹{driver.pricePerDay.toLocaleString()}/day
@@ -418,6 +472,79 @@ export default function LiveDriversPage() {
                               ))}
                             </div>
                           )}
+
+                          {/* Expandable details */}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedDriver(
+                                expandedDriver === driver.id ? null : driver.id,
+                              )
+                            }
+                            className="w-full text-xs text-green-400 hover:text-green-300 mt-1 py-1 border border-green-900/60 hover:border-green-700 rounded-lg transition-colors"
+                            data-ocid="live_drivers.toggle"
+                          >
+                            {expandedDriver === driver.id
+                              ? "▲ Hide Details"
+                              : "▼ View Full Details"}
+                          </button>
+
+                          {expandedDriver === driver.id && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="bg-gray-800/60 rounded-xl p-3 space-y-1.5 text-xs border border-gray-700/50"
+                            >
+                              {driver.phone && (
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">
+                                    📞 Phone
+                                  </span>
+                                  <span className="text-gray-200 font-medium">
+                                    {maskPhone(driver.phone)}
+                                  </span>
+                                </div>
+                              )}
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">
+                                  🚗 Vehicle
+                                </span>
+                                <span className="text-gray-200">
+                                  Personal Car / Sedan
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">📍 Area</span>
+                                <span className="text-gray-200">
+                                  {driver.city}, {driver.state}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">
+                                  🗣 Languages
+                                </span>
+                                <span className="text-gray-200">
+                                  {driver.languages.join(", ")}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">
+                                  ⏱ Experience
+                                </span>
+                                <span className="text-gray-200">
+                                  {driver.experienceYears} years
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">✅ Status</span>
+                                <span className="text-green-400 font-semibold">
+                                  Online Now
+                                </span>
+                              </div>
+                            </motion.div>
+                          )}
+
                           <Button
                             asChild
                             size="sm"
@@ -425,7 +552,11 @@ export default function LiveDriversPage() {
                             data-ocid="live_drivers.primary_button"
                           >
                             <Link
-                              to={`/book/${driver.isRegistered ? "reg" : driver.id}`}
+                              to={
+                                driver.isRegistered
+                                  ? `/book/reg-${driver.phone}`
+                                  : `/book/${driver.id}`
+                              }
                             >
                               Book Now →
                             </Link>

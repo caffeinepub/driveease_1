@@ -6,7 +6,7 @@ import {
   Search,
   Star,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
@@ -25,18 +25,30 @@ import {
   lookupPincode,
 } from "../data/pincodes";
 import { Link } from "../router";
+import { apiGetRegistrations } from "../utils/backendApi";
 
 export default function DriversPage() {
   const [stateFilter, setStateFilter] = useState("all");
   const [cityFilter, setCityFilter] = useState("all");
   const [availableOnly, setAvailableOnly] = useState(false);
   const [search, setSearch] = useState("");
+  const [approvedRegsCount, setApprovedRegsCount] = useState(0);
   const [pincode, setPincode] = useState("");
   const [pincodeResult, setPincodeResult] = useState<{
     city: string | null;
     state: string | null;
     searched: boolean;
   }>({ city: null, state: null, searched: false });
+
+  useEffect(() => {
+    apiGetRegistrations()
+      .then((regs) => {
+        setApprovedRegsCount(
+          regs.filter((r) => r.status === "approved").length,
+        );
+      })
+      .catch(() => {});
+  }, []);
 
   const handlePincodeSearch = () => {
     if (!pincode.trim()) return;
@@ -214,7 +226,8 @@ export default function DriversPage() {
             </button>
           )}
           <span className="ml-auto text-sm text-gray-500">
-            {filtered.length} drivers found
+            {filtered.length} drivers found · Total:{" "}
+            {seedDrivers.length + approvedRegsCount} on DriveEase
           </span>
         </div>
 

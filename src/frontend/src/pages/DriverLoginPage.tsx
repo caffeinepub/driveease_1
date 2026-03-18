@@ -27,6 +27,7 @@ import {
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Link, useNavigate } from "../router";
+import { apiSetDriverOnlineStatus } from "../utils/backendApi";
 
 interface DriverSession {
   driverId: number;
@@ -76,12 +77,19 @@ function getDriverSession(): DriverSession | null {
   }
 }
 
-function getBookingRequests(driverId: number): BookingRequest[] {
+function getBookingRequests(
+  driverId: number,
+  driverPhone?: string,
+): BookingRequest[] {
   try {
-    const all: BookingRequest[] = JSON.parse(
+    const all: Array<BookingRequest & { driverPhone?: string }> = JSON.parse(
       localStorage.getItem("driver_booking_requests") || "[]",
     );
-    return all.filter((r) => r.driverId === driverId && r.status === "pending");
+    return all.filter((r) => {
+      const matchesId = r.driverId === driverId;
+      const matchesPhone = driverPhone && r.driverPhone === driverPhone;
+      return (matchesId || matchesPhone) && r.status === "pending";
+    });
   } catch {
     return [];
   }
@@ -124,7 +132,7 @@ export default function DriverLoginPage() {
 
   useEffect(() => {
     if (session) {
-      setBookingRequests(getBookingRequests(session.driverId));
+      setBookingRequests(getBookingRequests(session.driverId, session.phone));
       setDriverBookings(getDriverBookings(session.name));
     }
   }, [session]);
@@ -133,7 +141,7 @@ export default function DriverLoginPage() {
   useEffect(() => {
     if (!session) return;
     const interval = setInterval(() => {
-      setBookingRequests(getBookingRequests(session.driverId));
+      setBookingRequests(getBookingRequests(session.driverId, session.phone));
       setDriverBookings(getDriverBookings(session.name));
     }, 5000);
     return () => clearInterval(interval);
@@ -248,6 +256,15 @@ export default function DriverLoginPage() {
     } catch {
       /* ignore */
     }
+    // Also sync status to backend
+    apiSetDriverOnlineStatus({
+      phone: session.phone ?? "",
+      name: session.name,
+      city: session.city,
+      driverId: String(session.driverId),
+      status: newStatus ? "online" : "offline",
+      lastUpdated: new Date().toISOString(),
+    }).catch(() => {});
     try {
       const locations: unknown[] = JSON.parse(
         localStorage.getItem("driver_locations") || "[]",
@@ -347,7 +364,8 @@ export default function DriverLoginPage() {
       );
 
       // Refresh
-      if (session) setBookingRequests(getBookingRequests(session.driverId));
+      if (session)
+        setBookingRequests(getBookingRequests(session.driverId, session.phone));
     } catch {
       // ignore
     }
@@ -389,7 +407,8 @@ export default function DriverLoginPage() {
         JSON.stringify(notifications),
       );
 
-      if (session) setBookingRequests(getBookingRequests(session.driverId));
+      if (session)
+        setBookingRequests(getBookingRequests(session.driverId, session.phone));
     } catch {
       // ignore
     }

@@ -41,6 +41,17 @@ import {
 import { seedDrivers } from "../data/drivers";
 import type { DriverData } from "../data/drivers";
 import {
+  apiGetAllDriverStatuses,
+  apiGetBookings,
+  apiGetEnquiries,
+  apiGetOtpLogins,
+  apiGetRegistrations,
+  apiUpdateBookingStatus,
+  apiUpdateEnquiryStatus,
+  apiUpdateRegistrationStatus,
+} from "../utils/backendApi";
+import type { ApiDriverStatus } from "../utils/backendApi";
+import {
   getBookings,
   getEnquiries,
   getOtpLogins,
@@ -178,17 +189,30 @@ export default function AdminDashboard() {
   // Registration detail modal
   const [viewReg, setViewReg] = useState<LocalRegistration | null>(null);
 
+  const [backendDriverStatuses, setBackendDriverStatuses] = useState<
+    ApiDriverStatus[]
+  >([]);
+
   // Driver activity expand
   const [expandedDriverId, setExpandedDriverId] = useState<
     string | number | null
   >(null);
 
-  const loadAll = useCallback(() => {
-    setBookings(getBookings());
-    setRegistrations(getRegistrations());
-    setOtpLogins(getOtpLogins());
-    setEnquiries(getEnquiries());
+  const loadAll = useCallback(async () => {
+    // Try backend first, fallback to localStorage automatically
+    const [bks, regs, logins, enqs] = await Promise.all([
+      apiGetBookings().catch(() => getBookings() as any),
+      apiGetRegistrations().catch(() => getRegistrations() as any),
+      apiGetOtpLogins().catch(() => getOtpLogins() as any),
+      apiGetEnquiries().catch(() => getEnquiries() as any),
+    ]);
+    setBookings(bks);
+    setRegistrations(regs);
+    setOtpLogins(logins);
+    setEnquiries(enqs);
     setDrivers(seedDrivers);
+    const statuses = await apiGetAllDriverStatuses().catch(() => []);
+    setBackendDriverStatuses(statuses);
     try {
       const rates = JSON.parse(
         localStorage.getItem("driveease_driver_rates") || "{}",
@@ -697,8 +721,11 @@ export default function AdminDashboard() {
                             <div className="flex gap-1">
                               <button
                                 type="button"
-                                onClick={() => {
-                                  updateBookingStatus(b.id, "confirmed");
+                                onClick={async () => {
+                                  await apiUpdateBookingStatus(
+                                    b.id,
+                                    "confirmed",
+                                  );
                                   loadAll();
                                 }}
                                 className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
@@ -713,8 +740,11 @@ export default function AdminDashboard() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => {
-                                  updateBookingStatus(b.id, "rejected");
+                                onClick={async () => {
+                                  await apiUpdateBookingStatus(
+                                    b.id,
+                                    "rejected",
+                                  );
                                   loadAll();
                                 }}
                                 className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
@@ -1161,8 +1191,11 @@ export default function AdminDashboard() {
                             <div className="flex gap-1 flex-col">
                               <button
                                 type="button"
-                                onClick={() => {
-                                  updateEnquiryStatus(eq.id, "contacted");
+                                onClick={async () => {
+                                  await apiUpdateEnquiryStatus(
+                                    eq.id,
+                                    "contacted",
+                                  );
                                   loadAll();
                                 }}
                                 className="px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200 transition-colors"
@@ -1176,8 +1209,8 @@ export default function AdminDashboard() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => {
-                                  updateEnquiryStatus(eq.id, "closed");
+                                onClick={async () => {
+                                  await apiUpdateEnquiryStatus(eq.id, "closed");
                                   loadAll();
                                 }}
                                 className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
@@ -1278,6 +1311,8 @@ export default function AdminDashboard() {
             <LiveDriversTab
               expandedDriverId={expandedDriverId}
               setExpandedDriverId={setExpandedDriverId}
+              backendDriverStatuses={backendDriverStatuses}
+              backendRegistrations={registrations}
             />
           )}
         </div>
@@ -1361,8 +1396,8 @@ export default function AdminDashboard() {
 
               <div className="flex gap-2">
                 <Button
-                  onClick={() => {
-                    updateRegistrationStatus(viewReg.id, "approved");
+                  onClick={async () => {
+                    await apiUpdateRegistrationStatus(viewReg.id, "approved");
                     loadAll();
                     setViewReg(null);
                   }}
@@ -1374,8 +1409,8 @@ export default function AdminDashboard() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    updateRegistrationStatus(viewReg.id, "rejected");
+                  onClick={async () => {
+                    await apiUpdateRegistrationStatus(viewReg.id, "rejected");
                     loadAll();
                     setViewReg(null);
                   }}
@@ -1406,9 +1441,20 @@ export default function AdminDashboard() {
 function LiveDriversTab({
   expandedDriverId,
   setExpandedDriverId,
+  backendDriverStatuses,
+  backendRegistrations,
 }: {
   expandedDriverId: string | number | null;
   setExpandedDriverId: (id: string | number | null) => void;
+  backendDriverStatuses: ApiDriverStatus[];
+  backendRegistrations: Array<{
+    id: number;
+    name: string;
+    phone: string;
+    city: string;
+    state: string;
+    status: string;
+  }>;
 }) {
   const mapRef = React.useRef<HTMLDivElement>(null);
   const mapInstanceRef = React.useRef<unknown>(null);
@@ -1425,9 +1471,6 @@ function LiveDriversTab({
       return {};
     }
   });
-  const [registrations, setRegistrations] = React.useState(() =>
-    getRegistrations(),
-  );
 
   React.useEffect(() => {
     try {
@@ -1437,10 +1480,24 @@ function LiveDriversTab({
     } catch {
       /* */
     }
-    setRegistrations(getRegistrations());
   }); // runs on every render - tick prop change triggers parent re-render
 
   const allDrivers = React.useMemo(() => {
+    // Build a set of online phones/ids from backend statuses
+    const backendOnline = new Set<string>();
+    for (const s of backendDriverStatuses) {
+      if (s.status === "online") {
+        backendOnline.add(s.phone);
+        backendOnline.add(s.driverId);
+      }
+    }
+
+    const isOnlineCheck = (id: string, phone: string) =>
+      driverStatus[id] === "online" ||
+      driverStatus[phone] === "online" ||
+      backendOnline.has(id) ||
+      backendOnline.has(phone);
+
     const seed = seedDrivers.map((d) => ({
       id: String(d.id),
       name: d.name,
@@ -1448,16 +1505,21 @@ function LiveDriversTab({
       city: d.city,
       lat: 20 + Math.random() * 10,
       lng: 73 + Math.random() * 15,
-      isOnline: driverStatus[String(d.id)] === "online" || d.isAvailable,
+      isOnline: isOnlineCheck(String(d.id), d.phone ?? "") || d.isAvailable,
       isRegistered: false,
     }));
 
-    const regs = registrations
+    // Use backendRegistrations (which includes cross-device approvals) + localStorage
+    const allRegs = [...backendRegistrations];
+    const regPhones = new Set(allRegs.map((r) => r.phone));
+    // Add any localStore regs not already in backend list
+    for (const r of getRegistrations()) {
+      if (!regPhones.has(r.phone)) allRegs.push(r);
+    }
+
+    const regs = allRegs
       .filter(
-        (r) =>
-          r.status === "approved" ||
-          driverStatus[String(r.id)] === "online" ||
-          driverStatus[r.phone] === "online",
+        (r) => r.status === "approved" || isOnlineCheck(String(r.id), r.phone),
       )
       .map((r) => ({
         id: `reg-${r.id}`,
@@ -1467,16 +1529,14 @@ function LiveDriversTab({
         lat: 20 + Math.random() * 10,
         lng: 73 + Math.random() * 15,
         isOnline:
-          driverStatus[String(r.id)] === "online" ||
-          driverStatus[r.phone] === "online" ||
-          r.status === "approved",
+          isOnlineCheck(String(r.id), r.phone) || r.status === "approved",
         isRegistered: true,
       }));
 
     // Merge, no duplicate phones
     const phones = new Set(seed.map((d) => d.phone));
     return [...seed, ...regs.filter((r) => !phones.has(r.phone))];
-  }, [driverStatus, registrations]);
+  }, [driverStatus, backendDriverStatuses, backendRegistrations]);
 
   const onlineDrivers = allDrivers.filter((d) => d.isOnline);
   const offlineDrivers = allDrivers.filter((d) => !d.isOnline);

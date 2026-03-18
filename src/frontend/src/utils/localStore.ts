@@ -20,6 +20,7 @@ export interface LocalBooking {
   total: number;
   insurance: boolean;
   status: "pending" | "confirmed" | "rejected" | "cancelled";
+  driverPhone?: string;
   createdAt: string;
 }
 

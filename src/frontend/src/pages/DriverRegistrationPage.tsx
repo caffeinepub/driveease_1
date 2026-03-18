@@ -11,6 +11,7 @@ import {
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { useActor } from "../hooks/useActor";
+import { apiSaveRegistration } from "../utils/backendApi";
 import { saveRegistration } from "../utils/localStore";
 
 const indianStates = [
@@ -114,6 +115,14 @@ export default function DriverRegistrationPage() {
         status: "pending",
         submittedAt: new Date().toISOString(),
       });
+      apiSaveRegistration({
+        name: form.name,
+        phone: form.phone,
+        email: form.email,
+        city: form.city,
+        state: form.state,
+        submittedAt: new Date().toISOString(),
+      }).catch(() => {});
       setSuccess(true);
     }
   };
