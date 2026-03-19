@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle, Phone, Shield } from "lucide-react";
+import { AlertCircle, CheckCircle, Info, Phone, Shield } from "lucide-react";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -51,6 +51,22 @@ export default function InsurancePage() {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-12 space-y-8">
+        {/* Accident Coverage Callout */}
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 flex items-start gap-4">
+          <Info className="text-amber-600 shrink-0 mt-0.5" size={22} />
+          <div>
+            <h3 className="font-semibold text-amber-900 mb-1">
+              Mid-Trip Accident Coverage
+            </h3>
+            <p className="text-amber-800 text-sm leading-relaxed">
+              Accidental coverage is automatically activated when you opt for{" "}
+              <strong>₹99 Ride Insurance</strong> during booking. Your safety is
+              covered from the moment your trip starts until it ends — including
+              any mid-trip accidents or emergencies involving the vehicle.
+            </p>
+          </div>
+        </div>
+
         <Card className="border-green-200">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

@@ -21,12 +21,10 @@ export default function Navbar() {
 
   const stored = localStorage.getItem("otp_customer");
   const customer = stored ? JSON.parse(stored) : null;
-  const isDriverLoggedIn = !!localStorage.getItem("driver_session");
   const unreadCount = getUnreadNotifications();
 
   const mainLinks = [
     { to: "/", label: "Home" },
-    { to: "/drivers", label: "Find Drivers" },
     { to: "/live-drivers", label: "🟢 Live Drivers" },
     { to: "/register-driver", label: "Drive With Us" },
   ];
@@ -95,24 +93,19 @@ export default function Navbar() {
                     {l.label}
                   </Link>
                 ))}
+                {customer?.loggedIn && (
+                  <Link
+                    to="/my-bookings"
+                    onClick={() => setServicesOpen(false)}
+                    className="block px-4 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded-b-lg"
+                    data-ocid="navbar.link"
+                  >
+                    My History
+                  </Link>
+                )}
               </div>
             )}
           </div>
-
-          {/* Driver Nav - gated */}
-          {isDriverLoggedIn && (
-            <Link
-              to="/driver-nav"
-              className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
-                pathname === "/driver-nav"
-                  ? "text-green-400 bg-gray-800"
-                  : "text-gray-300 hover:text-white hover:bg-gray-800"
-              }`}
-              data-ocid="navbar.link"
-            >
-              Driver Nav
-            </Link>
-          )}
 
           {/* Bell notification icon */}
           <Link
@@ -207,17 +200,17 @@ export default function Navbar() {
                 {l.label}
               </Link>
             ))}
+            {customer?.loggedIn && (
+              <Link
+                to="/my-bookings"
+                onClick={() => setOpen(false)}
+                className="block py-2 text-gray-300 hover:text-green-400 pl-2"
+                data-ocid="navbar.link"
+              >
+                My History
+              </Link>
+            )}
           </div>
-          {isDriverLoggedIn && (
-            <Link
-              to="/driver-nav"
-              onClick={() => setOpen(false)}
-              className="block py-2 text-gray-300 hover:text-green-400"
-              data-ocid="navbar.link"
-            >
-              Driver Nav
-            </Link>
-          )}
           <Link
             to="/driver-login"
             onClick={() => setOpen(false)}

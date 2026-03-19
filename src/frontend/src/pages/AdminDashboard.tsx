@@ -5,9 +5,11 @@ import {
   ClipboardList,
   Download,
   Eye,
+  Loader2,
   LogOut,
   MapPin,
   MessageSquare,
+  RefreshCw,
   Settings,
   Timer,
   Users,
@@ -177,6 +179,8 @@ export default function AdminDashboard() {
   const [driverRates, setDriverRates] = useState<Record<number, number>>({});
   const [ratesSaved, setRatesSaved] = useState(false);
   const [_tick, setTick] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Filters
   const [bookingSearch, setBookingSearch] = useState("");
@@ -188,7 +192,16 @@ export default function AdminDashboard() {
   const [regStatusFilter, setRegStatusFilter] = useState("");
 
   // Registration detail modal
-  const [viewReg, setViewReg] = useState<LocalRegistration | null>(null);
+  const [viewReg, setViewReg] = useState<
+    | (LocalRegistration & {
+        vehicleType?: string;
+        licenseNumber?: string;
+        experience?: string;
+        languages?: string;
+        workAreas?: string;
+      })
+    | null
+  >(null);
 
   const [backendDriverStatuses, setBackendDriverStatuses] = useState<
     ApiDriverStatus[]
@@ -199,28 +212,62 @@ export default function AdminDashboard() {
     string | number | null
   >(null);
 
-  const loadAll = useCallback(async () => {
-    // Try backend first, fallback to localStorage automatically
-    const [bks, regs, logins, enqs] = await Promise.all([
-      apiGetBookings().catch(() => getBookings() as any),
-      apiGetRegistrations().catch(() => getRegistrations() as any),
-      apiGetOtpLogins().catch(() => getOtpLogins() as any),
-      apiGetEnquiries().catch(() => getEnquiries() as any),
-    ]);
-    setBookings(bks);
-    setRegistrations(regs);
-    setOtpLogins(logins);
-    setEnquiries(enqs);
-    setDrivers(seedDrivers);
-    const statuses = await apiGetAllDriverStatuses().catch(() => []);
-    setBackendDriverStatuses(statuses);
+  const loadAll = useCallback(async (showSpinner = false) => {
+    if (showSpinner) setIsRefreshing(true);
+    setIsLoading(true);
     try {
-      const rates = JSON.parse(
-        localStorage.getItem("driveease_driver_rates") || "{}",
-      );
-      setDriverRates(rates);
-    } catch {
-      setDriverRates({});
+      // Try backend first, fallback to localStorage automatically
+      const [bks, regs, logins, enqs] = await Promise.all([
+        apiGetBookings().catch(() => []),
+        apiGetRegistrations().catch(() => []),
+        apiGetOtpLogins().catch(() => []),
+        apiGetEnquiries().catch(() => []),
+      ]);
+
+      // Merge backend + localStorage (deduplicate by id)
+      const localBks = getBookings();
+      const mergedBks = [...bks];
+      for (const lb of localBks) {
+        if (!mergedBks.some((b) => b.id === lb.id)) mergedBks.push(lb as any);
+      }
+      setBookings(mergedBks as any);
+
+      const localRegs = getRegistrations();
+      const mergedRegs = [...regs];
+      for (const lr of localRegs) {
+        if (!mergedRegs.some((r) => r.id === lr.id)) mergedRegs.push(lr as any);
+      }
+      setRegistrations(mergedRegs as any);
+
+      const localLogins = getOtpLogins();
+      const mergedLogins = [...logins];
+      for (const ll of localLogins) {
+        if (!mergedLogins.some((l) => l.id === ll.id))
+          mergedLogins.push(ll as any);
+      }
+      setOtpLogins(mergedLogins);
+
+      const localEnqs = getEnquiries();
+      const mergedEnqs = [...enqs];
+      for (const le of localEnqs) {
+        if (!mergedEnqs.some((e) => e.id === le.id)) mergedEnqs.push(le as any);
+      }
+      setEnquiries(mergedEnqs as any);
+
+      setDrivers(seedDrivers);
+      const statuses = await apiGetAllDriverStatuses().catch(() => []);
+      setBackendDriverStatuses(statuses);
+      try {
+        const rates = JSON.parse(
+          localStorage.getItem("driveease_driver_rates") || "{}",
+        );
+        setDriverRates(rates);
+      } catch {
+        setDriverRates({});
+      }
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, []);
 
@@ -520,6 +567,18 @@ export default function AdminDashboard() {
 
       {/* Main content */}
       <main className="flex-1 overflow-y-auto">
+        {/* Loading overlay */}
+        {isLoading && (
+          <div className="fixed inset-0 bg-black/20 z-50 flex items-center justify-center pointer-events-none">
+            <div className="bg-white rounded-xl shadow-xl px-6 py-4 flex items-center gap-3">
+              <Loader2 size={20} className="text-green-600 animate-spin" />
+              <span className="text-sm font-medium text-gray-700">
+                Loading data...
+              </span>
+            </div>
+          </div>
+        )}
+
         <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
           <div>
             <h1 className="text-lg font-bold text-gray-900">
@@ -529,7 +588,21 @@ export default function AdminDashboard() {
               Auto-refreshes every 10 seconds
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => loadAll(true)}
+              disabled={isRefreshing}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              data-ocid="admin.secondary_button"
+            >
+              {isRefreshing ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <RefreshCw size={13} />
+              )}
+              Refresh
+            </button>
             <BarChart3 size={16} className="text-green-600" />
             <span className="text-sm text-gray-500">
               {new Date().toLocaleTimeString("en-IN")}
@@ -647,6 +720,10 @@ export default function AdminDashboard() {
                     className="mx-auto mb-3 opacity-30"
                   />
                   <p className="font-medium">No bookings found</p>
+                  <p className="text-sm mt-1 opacity-70">
+                    Bookings made by customers will appear here. Data refreshes
+                    every 10 seconds.
+                  </p>
                 </div>
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
@@ -1039,8 +1116,12 @@ export default function AdminDashboard() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => {
+                                onClick={async () => {
                                   updateRegistrationStatus(r.id, "approved");
+                                  await apiUpdateRegistrationStatus(
+                                    r.id,
+                                    "approved",
+                                  ).catch(() => {});
                                   loadAll();
                                 }}
                                 className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
@@ -1051,8 +1132,12 @@ export default function AdminDashboard() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => {
+                                onClick={async () => {
                                   updateRegistrationStatus(r.id, "rejected");
+                                  await apiUpdateRegistrationStatus(
+                                    r.id,
+                                    "rejected",
+                                  ).catch(() => {});
                                   loadAll();
                                 }}
                                 className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
@@ -1375,6 +1460,46 @@ export default function AdminDashboard() {
                     {fmt(viewReg.submittedAt)}
                   </p>
                 </div>
+                {(viewReg as any).vehicleType && (
+                  <div>
+                    <p className="text-gray-500 text-xs">Vehicle Type</p>
+                    <p className="font-semibold">
+                      {(viewReg as any).vehicleType}
+                    </p>
+                  </div>
+                )}
+                {(viewReg as any).licenseNumber && (
+                  <div>
+                    <p className="text-gray-500 text-xs">License Number</p>
+                    <p className="font-semibold font-mono">
+                      {(viewReg as any).licenseNumber}
+                    </p>
+                  </div>
+                )}
+                {(viewReg as any).experience && (
+                  <div>
+                    <p className="text-gray-500 text-xs">Experience</p>
+                    <p className="font-semibold">
+                      {(viewReg as any).experience}
+                    </p>
+                  </div>
+                )}
+                {(viewReg as any).languages && (
+                  <div>
+                    <p className="text-gray-500 text-xs">Languages</p>
+                    <p className="font-semibold">
+                      {(viewReg as any).languages}
+                    </p>
+                  </div>
+                )}
+                {(viewReg as any).workAreas && (
+                  <div className="col-span-2">
+                    <p className="text-gray-500 text-xs">Work Areas</p>
+                    <p className="font-semibold">
+                      {(viewReg as any).workAreas}
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div>
