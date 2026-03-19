@@ -1,4 +1,4 @@
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, Clock, Shield, Star } from "lucide-react";
 import { useState } from "react";
 import { Button } from "../components/ui/button";
 import {
@@ -17,55 +17,64 @@ const plans = [
   {
     id: "weekend",
     name: "Weekend Driver",
-    price: 1999,
+    casualPrice: null,
+    monthlyPrice: 1999,
     period: "month",
-    color: "border-blue-200",
-    highlight: false,
+    featured: false,
+    seniorCare: false,
+    coverage: "Saturday & Sunday, up to 8 hrs/day",
     features: [
-      "Saturday & Sunday coverage",
-      "Up to 8 hrs/day",
+      "Weekend coverage",
       "Verified driver",
       "Family tracking",
       "SOS support",
+    ],
+    seniorAddons: [],
+  },
+  {
+    id: "hourly",
+    name: "Hourly Driver Plan",
+    casualPrice: 800,
+    monthlyPrice: 24000,
+    period: "month",
+    featured: true,
+    seniorCare: true,
+    coverage: "8 hours/day (7 AM – 9 PM flexible)",
+    features: [
+      "Verified & background-checked driver",
+      "Family tracking via app",
+      "SOS emergency support",
+      "Flexible scheduling (7 AM – 9 PM)",
+    ],
+    seniorAddons: [
+      "Medical appointment priority scheduling",
+      "Etiquette-trained driver",
+      "24/7 helpline support",
     ],
   },
   {
     id: "daily",
     name: "Daily Commute",
-    price: 4999,
+    casualPrice: 1200,
+    monthlyPrice: 4999,
     period: "month",
-    color: "border-green-400",
-    highlight: true,
+    featured: false,
+    seniorCare: false,
+    coverage: "2 hours daily, personal driver assigned",
     features: [
-      "2 hours daily coverage",
       "Assigned personal driver",
       "Priority booking",
       "Family account",
       "Grooming certified",
       "Free insurance",
     ],
-  },
-  {
-    id: "senior",
-    name: "Senior Care",
-    price: 7999,
-    period: "month",
-    color: "border-purple-200",
-    highlight: false,
-    features: [
-      "Dedicated senior care driver",
-      "Medical appointment priority",
-      "Etiquette trained",
-      "Family SOS alerts",
-      "24/7 helpline",
-      "Full insurance coverage",
-    ],
+    seniorAddons: [],
   },
 ];
 
 export default function SubscriptionsPage() {
   const { actor } = useActor();
-  const [selected, setSelected] = useState("daily");
+  const [selected, setSelected] = useState("hourly");
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -78,6 +87,11 @@ export default function SubscriptionsPage() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
 
+  const bg = "#0a0f0d";
+  const inputCls =
+    "bg-[#111a14] border-[#1a2e1a] text-[#f0fdf4] placeholder:text-[#86efac]/40";
+  const labelCls = "text-[#86efac] text-sm";
+
   const handleEnquiry = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name || !form.phone || !form.city) {
@@ -87,7 +101,7 @@ export default function SubscriptionsPage() {
     setLoading(true);
     setError("");
     try {
-      if (actor) {
+      if (actor)
         await actor.submitSubscriptionEnquiry(
           form.name,
           form.phone,
@@ -97,9 +111,8 @@ export default function SubscriptionsPage() {
           form.city,
           form.message,
         );
-      }
     } catch {
-      // proceed anyway
+      /* continue */
     } finally {
       setLoading(false);
       saveEnquiry({
@@ -130,27 +143,35 @@ export default function SubscriptionsPage() {
 
   if (success)
     return (
-      <div className="min-h-screen bg-green-50 flex items-center justify-center px-4">
-        <Card className="max-w-md w-full text-center shadow-lg">
-          <CardContent className="pt-8 pb-8">
-            <CheckCircle className="text-green-600 mx-auto mb-4" size={56} />
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              Enquiry Submitted!
-            </h2>
-            <p className="text-gray-600">
-              We'll contact you within 24 hours to discuss the best plan for
-              your family.
-            </p>
-          </CardContent>
-        </Card>
+      <div
+        className="min-h-screen flex items-center justify-center px-4"
+        style={{ background: bg }}
+      >
+        <div className="max-w-md w-full text-center">
+          <CheckCircle size={64} className="text-[#22c55e] mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-2">
+            Enquiry Submitted!
+          </h2>
+          <p className="text-[#86efac]">
+            We'll contact you within 24 hours to discuss the best plan for your
+            family.
+          </p>
+        </div>
       </div>
     );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-gray-900 text-white py-12 px-4 text-center">
-        <h1 className="text-3xl font-bold mb-2">Family Subscription Plans</h1>
-        <p className="text-gray-400">
+    <div className="min-h-screen" style={{ background: bg }}>
+      <div
+        className="py-14 px-4 text-center"
+        style={{
+          background: "linear-gradient(180deg,#0d1a0d 0%,#0a0f0d 100%)",
+        }}
+      >
+        <h1 className="text-4xl font-bold text-white mb-3">
+          Family Subscription Plans
+        </h1>
+        <p className="text-[#86efac] max-w-lg mx-auto">
           Predictable pricing. Peace of mind. What you see is what you pay.
         </p>
       </div>
@@ -158,69 +179,106 @@ export default function SubscriptionsPage() {
       <div className="max-w-5xl mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
           {plans.map((plan) => (
-            <Card
+            <div
               key={plan.id}
-              className={`cursor-pointer border-2 transition-all ${
-                selected === plan.id
-                  ? "border-green-500 shadow-lg scale-105"
-                  : plan.color
-              }`}
               onClick={() => setSelected(plan.id)}
+              onKeyDown={(e) => e.key === "Enter" && setSelected(plan.id)}
+              className={`relative cursor-pointer rounded-2xl border-2 transition-all ${selected === plan.id ? "border-[#22c55e] shadow-[0_0_30px_rgba(34,197,94,0.15)] scale-[1.02]" : "border-[#1a2e1a] hover:border-[#22c55e]/50"} bg-[#111a14] overflow-hidden`}
               data-ocid="subscriptions.card"
             >
-              <CardHeader>
-                {plan.highlight && (
-                  <span className="text-xs font-bold text-green-600 uppercase tracking-wide">
-                    Most Popular
-                  </span>
+              {plan.featured && (
+                <div className="bg-[#22c55e] text-black text-xs font-bold text-center py-1.5 tracking-wide">
+                  ⭐ FEATURED PLAN
+                </div>
+              )}
+              {plan.seniorCare && !plan.featured && (
+                <div className="bg-[#14b8a6] text-black text-xs font-bold text-center py-1.5 tracking-wide">
+                  🏥 SENIOR CARE
+                </div>
+              )}
+              <div className="p-6">
+                <h3 className="text-white font-bold text-xl mb-1">
+                  {plan.name}
+                </h3>
+                {plan.casualPrice && (
+                  <p className="text-[#86efac] text-sm mb-1">
+                    ₹{plan.casualPrice.toLocaleString()}/day casual booking
+                  </p>
                 )}
-                <CardTitle>{plan.name}</CardTitle>
-                <p className="text-2xl font-black text-gray-900">
-                  ₹{plan.price.toLocaleString()}
-                  <span className="text-sm font-normal text-gray-400">
-                    /{plan.period}
+                <div className="flex items-baseline gap-1 mb-3">
+                  <span className="text-3xl font-black text-white">
+                    ₹{plan.monthlyPrice.toLocaleString()}
                   </span>
+                  <span className="text-[#86efac] text-sm">/{plan.period}</span>
+                </div>
+                <p className="text-[#86efac] text-xs mb-4 flex items-center gap-1">
+                  <Clock size={12} />
+                  {plan.coverage}
                 </p>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2">
+                <ul className="space-y-2 mb-4">
                   {plan.features.map((f) => (
                     <li
                       key={f}
-                      className="flex items-center gap-2 text-sm text-gray-700"
+                      className="flex items-center gap-2 text-sm text-[#f0fdf4]"
                     >
-                      <span className="text-green-500">✓</span> {f}
+                      <CheckCircle
+                        size={14}
+                        className="text-[#22c55e] flex-shrink-0"
+                      />
+                      {f}
                     </li>
                   ))}
                 </ul>
-              </CardContent>
-            </Card>
+                {plan.seniorAddons.length > 0 && (
+                  <div className="border-t border-[#1a2e1a] pt-3 mt-3">
+                    <p className="text-[#14b8a6] text-xs font-semibold mb-2 flex items-center gap-1">
+                      <Shield size={12} />
+                      Senior Care Add-ons
+                    </p>
+                    {plan.seniorAddons.map((a) => (
+                      <div
+                        key={a}
+                        className="flex items-center gap-2 text-sm text-[#86efac] mb-1"
+                      >
+                        <Star
+                          size={12}
+                          className="text-[#14b8a6] flex-shrink-0"
+                        />
+                        {a}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           ))}
         </div>
 
-        <Card className="max-w-xl mx-auto shadow-md">
+        <Card className="max-w-xl mx-auto bg-[#111a14] border-[#1a2e1a] rounded-2xl">
           <CardHeader>
-            <CardTitle>Request a Callback</CardTitle>
-            <p className="text-sm text-gray-500">
+            <CardTitle className="text-[#22c55e]">Request a Callback</CardTitle>
+            <p className="text-sm text-[#86efac]">
               Selected:{" "}
-              <strong>{plans.find((p) => p.id === selected)?.name}</strong>
+              <strong className="text-white">
+                {plans.find((p) => p.id === selected)?.name}
+              </strong>
             </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleEnquiry} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Full Name *</Label>
+                  <Label className={labelCls}>Full Name *</Label>
                   <Input
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                     placeholder="Your name"
-                    className="mt-1"
+                    className={`mt-1 ${inputCls}`}
                     data-ocid="subscriptions.input"
                   />
                 </div>
                 <div>
-                  <Label>Phone *</Label>
+                  <Label className={labelCls}>Phone *</Label>
                   <Input
                     value={form.phone}
                     onChange={(e) =>
@@ -228,14 +286,14 @@ export default function SubscriptionsPage() {
                     }
                     placeholder="10-digit mobile"
                     maxLength={10}
-                    className="mt-1"
+                    className={`mt-1 ${inputCls}`}
                     data-ocid="subscriptions.input"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Email</Label>
+                  <Label className={labelCls}>Email</Label>
                   <Input
                     type="email"
                     value={form.email}
@@ -243,23 +301,23 @@ export default function SubscriptionsPage() {
                       setForm({ ...form, email: e.target.value })
                     }
                     placeholder="your@email.com"
-                    className="mt-1"
+                    className={`mt-1 ${inputCls}`}
                     data-ocid="subscriptions.input"
                   />
                 </div>
                 <div>
-                  <Label>City *</Label>
+                  <Label className={labelCls}>City *</Label>
                   <Input
                     value={form.city}
                     onChange={(e) => setForm({ ...form, city: e.target.value })}
                     placeholder="Your city"
-                    className="mt-1"
+                    className={`mt-1 ${inputCls}`}
                     data-ocid="subscriptions.input"
                   />
                 </div>
               </div>
               <div>
-                <Label>Family Members</Label>
+                <Label className={labelCls}>Family Members</Label>
                 <Input
                   type="number"
                   min="1"
@@ -268,12 +326,12 @@ export default function SubscriptionsPage() {
                   onChange={(e) =>
                     setForm({ ...form, members: e.target.value })
                   }
-                  className="mt-1"
+                  className={`mt-1 ${inputCls}`}
                   data-ocid="subscriptions.input"
                 />
               </div>
               <div>
-                <Label>Message (optional)</Label>
+                <Label className={labelCls}>Message (optional)</Label>
                 <textarea
                   value={form.message}
                   onChange={(e) =>
@@ -281,13 +339,13 @@ export default function SubscriptionsPage() {
                   }
                   placeholder="Any special requirements..."
                   rows={3}
-                  className="mt-1 w-full border border-gray-200 rounded-md px-3 py-2 text-sm resize-none"
+                  className="mt-1 w-full border rounded-xl px-3 py-2 text-sm resize-none bg-[#111a14] border-[#1a2e1a] text-[#f0fdf4] placeholder:text-[#86efac]/40"
                   data-ocid="subscriptions.textarea"
                 />
               </div>
               {error && (
                 <p
-                  className="text-red-600 text-sm"
+                  className="text-red-400 text-sm"
                   data-ocid="subscriptions.error_state"
                 >
                   {error}
@@ -296,7 +354,7 @@ export default function SubscriptionsPage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-green-600 hover:bg-green-500 text-white font-semibold"
+                className="w-full bg-[#22c55e] hover:bg-[#16a34a] text-black font-semibold"
                 data-ocid="subscriptions.submit_button"
               >
                 {loading ? "Submitting..." : "Request Callback"}

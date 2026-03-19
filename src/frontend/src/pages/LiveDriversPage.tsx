@@ -6,7 +6,6 @@ import {
   RefreshCw,
   Search,
   Star,
-  Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -14,12 +13,8 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
-import { indianCities, seedDrivers } from "../data/drivers";
 import { Link } from "../router";
-import {
-  apiGetOnlineDrivers,
-  apiGetRegistrations as apiGetRegs,
-} from "../utils/backendApi";
+import { apiGetOnlineDrivers, apiGetRegistrations } from "../utils/backendApi";
 import { getRegistrations } from "../utils/localStore";
 
 interface LiveDriver {
@@ -32,545 +27,382 @@ interface LiveDriver {
   experienceYears: number;
   pricePerDay: number;
   languages: string[];
-  trustBadges: string[];
-  photoUrl: string;
   isVerified: boolean;
-  isRegistered?: boolean;
+  vehicleType?: string;
+  licenseNumber?: string;
+  experience?: string;
+  workAreas?: string;
 }
 
-function getOnlineDriverIds(): Set<string> {
-  try {
-    const status = JSON.parse(
-      localStorage.getItem("driveease_driver_status") || "{}",
-    );
-    return new Set(
-      Object.entries(status)
-        .filter(([, v]) => v === "online")
-        .map(([k]) => k),
-    );
-  } catch {
-    return new Set();
-  }
+function parseExp(exp: string): number {
+  if (exp?.includes("10+")) return 10;
+  if (exp?.includes("5-10")) return 7;
+  if (exp?.includes("3-5")) return 4;
+  if (exp?.includes("1-2")) return 2;
+  return 1;
 }
 
-async function buildLiveDrivers(): Promise<LiveDriver[]> {
-  const onlineIds = getOnlineDriverIds();
+async function fetchLive(): Promise<LiveDriver[]> {
+  // Get local online status map
+  const localStatusMap = (() => {
+    try {
+      return JSON.parse(
+        localStorage.getItem("driveease_driver_status") || "{}",
+      );
+    } catch {
+      return {};
+    }
+  })();
 
   // Fetch backend data in parallel
-  const [backendOnlineDrivers, backendRegs] = await Promise.all([
+  const [backendOnline, backendRegs] = await Promise.all([
     apiGetOnlineDrivers().catch(() => []),
-    apiGetRegs().catch(() => []),
+    apiGetRegistrations().catch(() => []),
   ]);
 
-  // Build set of backend online phones/ids
-  const backendOnlineSet = new Set<string>();
-  for (const s of backendOnlineDrivers) {
-    if (s.status === "online") {
-      backendOnlineSet.add(s.phone);
-      backendOnlineSet.add(s.driverId);
-    }
+  // Build set of online phones from backend
+  const onlinePhones = new Set<string>();
+  for (const s of backendOnline) {
+    if (s.status === "online") onlinePhones.add(s.phone);
+  }
+  // Also check localStorage for same-device drivers
+  for (const [key, val] of Object.entries(localStatusMap)) {
+    if (val === "online") onlinePhones.add(key);
   }
 
-  // Seed drivers that are available or online
-  const seedLive: LiveDriver[] = seedDrivers
-    .filter(
-      (d) =>
-        d.isAvailable ||
-        onlineIds.has(String(d.id)) ||
-        backendOnlineSet.has(String(d.id)) ||
-        backendOnlineSet.has(d.phone ?? ""),
-    )
-    .map((d) => ({
-      id: d.id,
-      name: d.name,
-      phone: d.phone ?? "",
-      city: d.city,
-      state: d.state,
-      rating: d.rating,
-      experienceYears: d.experienceYears,
-      pricePerDay: d.pricePerDay,
-      languages: d.languages,
-      trustBadges: d.trustBadges,
-      photoUrl: d.photoUrl,
-      isVerified: d.isVerified,
-    }));
-
-  // Merge backend regs with localStorage regs
+  // Merge backend + local registrations (deduplicate by phone)
   const allRegs = [...backendRegs];
-  const regPhones = new Set(allRegs.map((r) => r.phone));
+  const backendPhones = new Set(backendRegs.map((r: any) => r.phone));
   for (const r of getRegistrations()) {
-    if (!regPhones.has(r.phone)) allRegs.push(r);
+    if (!backendPhones.has(r.phone)) allRegs.push(r as any);
   }
 
-  // Registered drivers (approved or online)
-  const registeredLive: LiveDriver[] = allRegs
-    .filter(
-      (r) =>
-        r.status === "approved" ||
-        onlineIds.has(String(r.id)) ||
-        onlineIds.has(r.phone) ||
-        backendOnlineSet.has(String(r.id)) ||
-        backendOnlineSet.has(r.phone),
-    )
-    .map((r) => ({
+  // Filter: approved AND online (match by phone ONLY)
+  return allRegs
+    .filter((r: any) => r.status === "approved" && onlinePhones.has(r.phone))
+    .map((r: any) => ({
       id: `reg-${r.id}`,
       name: r.name,
       phone: r.phone,
-      city: r.city,
-      state: r.state ?? "",
+      city: r.city || "",
+      state: r.state || "",
       rating: 4.5,
-      experienceYears: 2,
+      experienceYears: parseExp(r.experience || ""),
       pricePerDay: 1200,
-      languages: ["Hindi", "English"],
-      trustBadges: ["Background Verified"],
-      photoUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(r.name)}&background=16a34a&color=fff&size=128`,
-      isVerified: r.status === "approved",
-      isRegistered: true,
+      languages: r.languages
+        ? r.languages.split(",").map((l: string) => l.trim())
+        : ["Hindi"],
+      isVerified: true,
+      vehicleType: r.vehicleType || "",
+      licenseNumber: r.licenseNumber || "",
+      experience: r.experience || "",
+      workAreas: r.workAreas || "",
     }));
-
-  // Merge, avoiding duplicates by phone
-  const phones = new Set(seedLive.map((d) => d.phone));
-  const merged = [
-    ...seedLive,
-    ...registeredLive.filter((d) => !phones.has(d.phone)),
-  ];
-  return merged;
 }
 
 export default function LiveDriversPage() {
-  const [citySearch, setCitySearch] = useState("");
-  const [selectedCity, setSelectedCity] = useState("");
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [liveDrivers, setLiveDrivers] = useState<LiveDriver[]>([]);
-  const [expandedDriver, setExpandedDriver] = useState<string | number | null>(
-    null,
-  );
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [drivers, setDrivers] = useState<LiveDriver[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [cityFilter, setCityFilter] = useState("");
+  const [selected, setSelected] = useState<LiveDriver | null>(null);
+  const [lastUpdated, setLastUpdated] = useState(Date.now());
+  const [secsAgo, setSecsAgo] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const reload = useCallback(async () => {
-    const drivers = await buildLiveDrivers();
-    setLiveDrivers(drivers);
-    setRefreshKey((k) => k + 1);
-    setLastUpdated(new Date());
-  }, []);
-
-  useEffect(() => {
-    reload();
-    const iv = setInterval(reload, 10000);
-    return () => clearInterval(iv);
-  }, [reload]);
-
-  const suggestions = citySearch.trim()
-    ? indianCities
-        .filter((c) => c.toLowerCase().includes(citySearch.toLowerCase()))
-        .slice(0, 8)
-    : [];
-
-  const filteredDrivers = selectedCity
-    ? liveDrivers.filter(
-        (d) => d.city.toLowerCase() === selectedCity.toLowerCase(),
-      )
-    : liveDrivers;
-
-  const handleCitySelect = (city: string) => {
-    setSelectedCity(city);
-    setCitySearch(city);
-    setShowSuggestions(false);
-  };
-
-  const handleClear = () => {
-    setSelectedCity("");
-    setCitySearch("");
-  };
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (
-        inputRef.current &&
-        !inputRef.current
-          .closest(".city-search-wrapper")
-          ?.contains(e.target as Node)
-      ) {
-        setShowSuggestions(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const maskPhone = (phone: string) => {
-    if (!phone || phone.length < 6) return phone;
-    const clean = phone.replace(/^(\+91|91)/, "");
-    if (clean.length >= 10) {
-      return `${clean.slice(0, 2)}****${clean.slice(-4)}`;
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const live = await fetchLive();
+      setDrivers(live);
+      setLastUpdated(Date.now());
+      setSecsAgo(0);
+    } catch {
+      setDrivers([]);
+    } finally {
+      setLoading(false);
     }
-    return `${phone.slice(0, 2)}****${phone.slice(-2)}`;
-  };
+  }, []);
 
-  const renderStars = (rating: number) => (
-    <span className="flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map((s) => (
-        <Star
-          key={s}
-          size={11}
-          className={
-            s <= Math.round(rating)
-              ? "fill-yellow-400 text-yellow-400"
-              : "text-gray-600"
-          }
-        />
-      ))}
-      <span className="text-xs font-semibold text-gray-300 ml-1">
-        {rating.toFixed(1)}
-      </span>
-    </span>
+  useEffect(() => {
+    refresh();
+    const onFocus = () => refresh();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [refresh]);
+
+  useEffect(() => {
+    timerRef.current = setInterval(
+      () => setSecsAgo(Math.floor((Date.now() - lastUpdated) / 1000)),
+      1000,
+    );
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [lastUpdated]);
+
+  const filtered = drivers.filter(
+    (d) =>
+      !cityFilter || d.city.toLowerCase().includes(cityFilter.toLowerCase()),
   );
+  const bg = "#0a0f0d";
 
   return (
-    <div className="min-h-screen bg-gray-950">
-      {/* Header */}
-      <div className="bg-gray-900 border-b border-gray-800 py-10 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="flex items-center justify-center gap-3 mb-3">
-            <span className="relative flex h-4 w-4">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-4 w-4 bg-green-500" />
-            </span>
-            <h1 className="text-3xl md:text-4xl font-bold text-white">
-              Live Drivers Near You
-            </h1>
-          </div>
-          <p className="text-gray-400 mb-2">
-            Browse available drivers right now — filtered by city in real time
-          </p>
-          <div
-            className="inline-flex items-center gap-2 bg-green-900/40 border border-green-700/50 text-green-300 rounded-full px-5 py-2 text-sm font-semibold mt-1"
-            data-ocid="live_drivers.success_state"
-          >
-            <Zap size={14} className="fill-green-400 text-green-400" />
-            {liveDrivers.length} drivers available right now across India
-          </div>
+    <div className="min-h-screen" style={{ background: bg }}>
+      <div
+        className="py-12 px-4 text-center"
+        style={{
+          background: "linear-gradient(180deg,#0d1a0d 0%,#0a0f0d 100%)",
+        }}
+      >
+        <div className="inline-flex items-center gap-2 bg-green-500/20 border border-green-500/30 text-green-400 rounded-full px-4 py-1.5 text-sm font-semibold mb-4">
+          <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+          LIVE
         </div>
+        <h1 className="text-4xl font-bold text-white mb-2">Live Drivers</h1>
+        <p className="text-[#86efac]">
+          Real-time driver availability across India
+        </p>
       </div>
 
-      {/* City Search */}
-      <div className="bg-gray-900 px-4 pb-8 pt-6">
-        <div className="max-w-xl mx-auto">
-          <div className="relative city-search-wrapper">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="flex flex-wrap items-center gap-3 mb-6">
+          <div className="relative flex-1 min-w-[200px]">
             <Search
               size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[#86efac]"
             />
             <Input
-              ref={inputRef}
-              placeholder="Type a city name (e.g. Mumbai, Delhi, Bangalore...)"
-              value={citySearch}
-              onChange={(e) => {
-                setCitySearch(e.target.value);
-                setSelectedCity("");
-                setShowSuggestions(true);
-              }}
-              onFocus={() => setShowSuggestions(true)}
-              className="pl-9 pr-20 bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 h-12 rounded-xl focus:border-green-500"
+              placeholder="Filter by city..."
+              value={cityFilter}
+              onChange={(e) => setCityFilter(e.target.value)}
+              className="pl-9 bg-[#111a14] border-[#1a2e1a] text-[#f0fdf4] placeholder:text-[#86efac]/50"
               data-ocid="live_drivers.search_input"
             />
-            {citySearch && (
-              <button
-                type="button"
-                onClick={handleClear}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 text-xs"
-                data-ocid="live_drivers.cancel_button"
-              >
-                Clear
-              </button>
-            )}
-            {showSuggestions && suggestions.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden">
-                {suggestions.map((city) => (
-                  <button
-                    key={city}
-                    type="button"
-                    onMouseDown={() => handleCitySelect(city)}
-                    className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700 hover:text-white flex items-center gap-2"
-                    data-ocid="live_drivers.button"
-                  >
-                    <MapPin size={12} className="text-green-500" />
-                    {city}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
-
-          <div className="flex items-center justify-between mt-4">
-            <div className="text-sm text-gray-500">
-              {selectedCity ? (
-                <span className="text-green-400 font-medium">
-                  Showing live drivers in{" "}
-                  <span className="text-white">{selectedCity}</span>
-                </span>
-              ) : (
-                <span>Showing all available drivers across India</span>
-              )}
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-gray-600">
-                Updated{" "}
-                {Math.round((Date.now() - lastUpdated.getTime()) / 1000)}s ago
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={reload}
-                className="border-gray-700 text-gray-400 hover:text-white hover:border-green-600 gap-1.5"
-                data-ocid="live_drivers.secondary_button"
-              >
-                <RefreshCw size={13} />
-                Refresh
-              </Button>
-            </div>
-          </div>
+          <Button
+            onClick={refresh}
+            className="bg-[#22c55e] hover:bg-[#16a34a] text-black font-semibold gap-2"
+            disabled={loading}
+            data-ocid="live_drivers.primary_button"
+          >
+            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />{" "}
+            Refresh
+          </Button>
+          <span className="text-[#86efac] text-sm">
+            <Clock size={12} className="inline mr-1" />
+            Updated {secsAgo}s ago
+          </span>
         </div>
-      </div>
 
-      {/* Driver Grid */}
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <AnimatePresence mode="wait">
-          {filteredDrivers.length === 0 ? (
-            <motion.div
-              key="empty"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="text-center py-20"
-              data-ocid="live_drivers.empty_state"
-            >
-              <div className="text-5xl mb-4">🔍</div>
-              <h3 className="text-xl font-semibold text-white mb-2">
-                No live drivers{selectedCity ? ` in ${selectedCity}` : ""}
-              </h3>
-              <p className="text-gray-500 mb-6">
-                All drivers in this city are currently busy or offline. Try
-                another city or refresh.
-              </p>
-              <div className="flex gap-3 justify-center">
-                <Button
-                  onClick={handleClear}
-                  className="bg-green-600 hover:bg-green-500 text-white"
-                  data-ocid="live_drivers.primary_button"
+        {loading ? (
+          <div
+            className="text-center py-20"
+            data-ocid="live_drivers.loading_state"
+          >
+            <RefreshCw
+              size={40}
+              className="text-[#22c55e] mx-auto mb-3 animate-spin"
+            />
+            <p className="text-[#86efac]">Loading live drivers...</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div
+            className="text-center py-20"
+            data-ocid="live_drivers.empty_state"
+          >
+            <div className="w-20 h-20 bg-[#111a14] border border-[#1a2e1a] rounded-full flex items-center justify-center mx-auto mb-4">
+              <MapPin size={32} className="text-[#86efac]" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">
+              No drivers online
+            </h3>
+            <p className="text-[#86efac]">
+              No drivers are currently online. Check back soon.
+            </p>
+            <p className="text-gray-500 text-sm mt-2">
+              Drivers need to be registered, approved, and toggled online to
+              appear here.
+            </p>
+          </div>
+        ) : (
+          <AnimatePresence>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filtered.map((d, i) => (
+                <motion.div
+                  key={d.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  data-ocid={`live_drivers.item.${i + 1}`}
                 >
-                  View All India Drivers
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={reload}
-                  className="border-gray-700 text-gray-400 hover:text-white"
-                  data-ocid="live_drivers.secondary_button"
-                >
-                  <RefreshCw size={14} className="mr-1" /> Refresh
-                </Button>
-              </div>
-            </motion.div>
-          ) : (
-            <motion.div
-              key={`grid-${refreshKey}-${selectedCity}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <p className="text-gray-500 text-sm mb-5">
-                <span className="text-green-400 font-semibold">
-                  {filteredDrivers.length}
-                </span>{" "}
-                driver{filteredDrivers.length !== 1 ? "s" : ""} available
-                {selectedCity ? ` in ${selectedCity}` : " across India"}
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {filteredDrivers.map((driver, idx) => (
-                  <motion.div
-                    key={driver.id}
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.04 }}
-                    data-ocid={`live_drivers.item.${idx + 1}`}
-                  >
-                    <Card className="border-gray-800 bg-gray-900 hover:border-green-700 transition-all hover:shadow-green-900/30 hover:shadow-xl overflow-hidden">
-                      <CardContent className="p-0">
-                        <div className="bg-gradient-to-br from-gray-800 to-gray-900 p-4 flex items-center gap-3">
+                  <Card className="bg-[#111a14] border border-[#1a2e1a] rounded-2xl overflow-hidden hover:border-[#22c55e]/50 transition-colors">
+                    <CardContent className="p-0">
+                      <div
+                        className="p-4"
+                        style={{
+                          background:
+                            "linear-gradient(135deg,#0d1a0d 0%,#111a14 100%)",
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
                           <div className="relative">
-                            <img
-                              src={driver.photoUrl}
-                              alt={driver.name}
-                              className="w-14 h-14 rounded-full bg-gray-700 object-cover"
-                            />
-                            <span className="absolute -top-1 -right-1 flex items-center">
-                              <span className="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-green-400 opacity-75" />
-                              <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500 border-2 border-gray-800" />
-                            </span>
-                            {driver.isVerified && (
-                              <span className="absolute -bottom-1 -right-1 bg-green-500 rounded-full w-5 h-5 flex items-center justify-center border-2 border-gray-900">
-                                <CheckCircle
-                                  size={11}
-                                  className="text-white fill-white"
-                                />
+                            <div className="w-14 h-14 rounded-full bg-[#22c55e]/20 border-2 border-[#22c55e]/40 flex items-center justify-center text-[#22c55e] font-bold text-xl">
+                              {d.name.charAt(0)}
+                            </div>
+                            <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-[#0a0f0d] animate-pulse" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-white font-semibold">
+                                {d.name}
                               </span>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <span className="text-white font-semibold text-sm truncate block">
-                              {driver.name}
-                            </span>
-                            <div className="flex items-center gap-1 text-gray-400 text-xs mt-0.5">
-                              <MapPin size={10} />
-                              {driver.city}, {driver.state}
-                            </div>
-                            {renderStars(driver.rating)}
-                          </div>
-                        </div>
-
-                        <div className="px-4 pt-3 flex items-center justify-between">
-                          <span className="inline-flex items-center gap-1.5 bg-green-900/50 border border-green-700/50 text-green-400 text-xs font-bold px-2.5 py-1 rounded-full">
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block animate-pulse" />
-                            LIVE
-                          </span>
-                          {driver.isVerified && (
-                            <span className="flex items-center gap-0.5 bg-green-950 border border-green-800 text-green-400 text-xs font-semibold px-2 py-0.5 rounded-full">
-                              <CheckCircle
-                                size={9}
-                                className="fill-green-500 text-green-500"
-                              />
-                              Verified
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="p-4 pt-2 space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span className="flex items-center gap-1 text-gray-500">
-                              <Clock size={12} />
-                              {driver.experienceYears} yrs exp
-                            </span>
-                            <span className="font-bold text-green-400">
-                              ₹{driver.pricePerDay.toLocaleString()}/day
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1 text-xs text-gray-500">
-                            <Languages size={10} />
-                            {driver.languages.join(", ")}
-                          </div>
-                          {driver.trustBadges.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                              {driver.trustBadges.map((b) => (
-                                <Badge
-                                  key={b}
-                                  className="text-xs bg-gray-800 text-gray-400 border border-gray-700 font-normal px-1.5"
-                                >
-                                  {b}
+                              {d.isVerified && (
+                                <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs">
+                                  ✓ Verified
                                 </Badge>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Expandable details */}
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setExpandedDriver(
-                                expandedDriver === driver.id ? null : driver.id,
-                              )
-                            }
-                            className="w-full text-xs text-green-400 hover:text-green-300 mt-1 py-1 border border-green-900/60 hover:border-green-700 rounded-lg transition-colors"
-                            data-ocid="live_drivers.toggle"
-                          >
-                            {expandedDriver === driver.id
-                              ? "▲ Hide Details"
-                              : "▼ View Full Details"}
-                          </button>
-
-                          {expandedDriver === driver.id && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: "auto" }}
-                              exit={{ opacity: 0, height: 0 }}
-                              className="bg-gray-800/60 rounded-xl p-3 space-y-1.5 text-xs border border-gray-700/50"
-                            >
-                              {driver.phone && (
-                                <div className="flex justify-between">
-                                  <span className="text-gray-500">
-                                    📞 Phone
-                                  </span>
-                                  <span className="text-gray-200 font-medium">
-                                    {maskPhone(driver.phone)}
-                                  </span>
-                                </div>
                               )}
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">
-                                  🚗 Vehicle
-                                </span>
-                                <span className="text-gray-200">
-                                  Personal Car / Sedan
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">📍 Area</span>
-                                <span className="text-gray-200">
-                                  {driver.city}, {driver.state}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">
-                                  🗣 Languages
-                                </span>
-                                <span className="text-gray-200">
-                                  {driver.languages.join(", ")}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">
-                                  ⏱ Experience
-                                </span>
-                                <span className="text-gray-200">
-                                  {driver.experienceYears} years
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">✅ Status</span>
-                                <span className="text-green-400 font-semibold">
-                                  Online Now
-                                </span>
-                              </div>
-                            </motion.div>
-                          )}
-
+                            </div>
+                            <div className="flex items-center gap-1 text-[#86efac] text-xs mt-0.5">
+                              <MapPin size={10} />
+                              {d.city}
+                              {d.state ? `, ${d.state}` : ""}
+                            </div>
+                            <div className="flex items-center gap-0.5 mt-0.5">
+                              {[1, 2, 3, 4, 5].map((s) => (
+                                <Star
+                                  key={s}
+                                  size={10}
+                                  className={
+                                    s <= Math.round(d.rating)
+                                      ? "fill-yellow-400 text-yellow-400"
+                                      : "text-gray-600"
+                                  }
+                                />
+                              ))}
+                              <span className="text-xs text-gray-400 ml-1">
+                                {d.rating.toFixed(1)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-4 space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-[#86efac] flex items-center gap-1">
+                            <Clock size={12} />
+                            {d.experienceYears} yrs exp
+                          </span>
+                          <span className="text-[#22c55e] font-bold">
+                            ₹{d.pricePerDay.toLocaleString()}/day
+                          </span>
+                        </div>
+                        {d.languages.length > 0 && (
+                          <div className="flex items-center gap-1 text-xs text-[#86efac]">
+                            <Languages size={10} />
+                            {d.languages.join(", ")}
+                          </div>
+                        )}
+                        <div className="flex gap-2 mt-3">
                           <Button
-                            asChild
                             size="sm"
-                            className="w-full mt-2 bg-green-600 hover:bg-green-500 text-white font-semibold"
+                            onClick={() => setSelected(d)}
+                            variant="outline"
+                            className="flex-1 border-[#1a2e1a] text-[#86efac] hover:bg-[#1a2e1a] text-xs"
+                            data-ocid="live_drivers.secondary_button"
+                          >
+                            View Details
+                          </Button>
+                          <Button
+                            size="sm"
+                            asChild
+                            className="flex-1 bg-[#22c55e] hover:bg-[#16a34a] text-black font-semibold text-xs"
                             data-ocid="live_drivers.primary_button"
                           >
-                            <Link
-                              to={
-                                driver.isRegistered
-                                  ? `/book/reg-${driver.phone}`
-                                  : `/book/${driver.id}`
-                              }
-                            >
-                              Book Now →
-                            </Link>
+                            <Link to={`/book/${d.id}`}>Book Now</Link>
                           </Button>
                         </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          </AnimatePresence>
+        )}
+      </div>
+
+      <AnimatePresence>
+        {selected && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.8)" }}
+            onClick={() => setSelected(null)}
+          >
+            <motion.div
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              className="bg-[#111a14] border border-[#1a2e1a] rounded-2xl p-6 w-full max-w-sm"
+              onClick={(e) => e.stopPropagation()}
+              data-ocid="live_drivers.modal"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-white font-bold text-lg">
+                  {selected.name}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setSelected(null)}
+                  className="text-[#86efac] hover:text-white"
+                  data-ocid="live_drivers.close_button"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="space-y-2 text-sm">
+                {[
+                  { l: "City", v: selected.city },
+                  { l: "Vehicle", v: selected.vehicleType || "Any" },
+                  {
+                    l: "Experience",
+                    v:
+                      selected.experience ||
+                      `${selected.experienceYears} years`,
+                  },
+                  { l: "Languages", v: selected.languages.join(", ") },
+                  { l: "Work Areas", v: selected.workAreas || selected.city },
+                  {
+                    l: "Phone",
+                    v: selected.phone.replace(
+                      /^(.{2})(.*)(.{4})$/,
+                      (_, a, b, c) => a + b.replace(/./g, "*") + c,
+                    ),
+                  },
+                  { l: "Rating", v: `⭐ ${selected.rating}/5.0` },
+                ].map(({ l, v }) => (
+                  <div
+                    key={l}
+                    className="flex justify-between py-1 border-b border-[#1a2e1a]"
+                  >
+                    <span className="text-[#86efac]">{l}</span>
+                    <span className="text-white font-medium">{v}</span>
+                  </div>
                 ))}
               </div>
+              <Button
+                asChild
+                className="w-full mt-5 bg-[#22c55e] hover:bg-[#16a34a] text-black font-semibold"
+                data-ocid="live_drivers.confirm_button"
+              >
+                <Link to={`/book/${selected.id}`}>Book This Driver</Link>
+              </Button>
             </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

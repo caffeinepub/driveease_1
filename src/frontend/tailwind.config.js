@@ -15,6 +15,10 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        display: ['Bricolage Grotesque', 'sans-serif'],
+        sans: ['Plus Jakarta Sans', 'sans-serif'],
+      },
       colors: {
         border: "oklch(var(--border))",
         input: "oklch(var(--input))",

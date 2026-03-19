@@ -33,6 +33,11 @@ export interface LocalRegistration {
   state: string;
   status: "pending" | "approved" | "rejected";
   submittedAt: string;
+  vehicleType?: string;
+  licenseNumber?: string;
+  experience?: string;
+  languages?: string;
+  workAreas?: string;
 }
 
 export interface LocalOtpLogin {

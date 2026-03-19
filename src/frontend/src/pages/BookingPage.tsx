@@ -8,8 +8,9 @@ import {
   MapPin,
   Navigation,
   Shield,
+  Zap,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import MapPicker from "../components/MapPicker";
 import { Button } from "../components/ui/button";
 import {
@@ -67,6 +68,104 @@ const BOOKING_TYPES: {
 ];
 
 type DriverData = (typeof seedDrivers)[0];
+
+function haversineKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.3; // road factor
+}
+
+interface PricingConfig {
+  minFare: number;
+  baseCharge: number;
+  perKmRate: number;
+  nightSurcharge: number;
+}
+
+function getPricingConfig(): PricingConfig {
+  try {
+    const stored = JSON.parse(
+      localStorage.getItem("driveease_pricing_config") || "{}",
+    );
+    return {
+      minFare: stored.minFare ?? 99,
+      baseCharge: stored.baseCharge ?? 50,
+      perKmRate: stored.perKmRate ?? 12,
+      nightSurcharge: stored.nightSurcharge ?? 20,
+    };
+  } catch {
+    return { minFare: 99, baseCharge: 50, perKmRate: 12, nightSurcharge: 20 };
+  }
+}
+
+function calculateFare(
+  distanceKm: number,
+  config: PricingConfig,
+): {
+  base: number;
+  perKm: number;
+  subtotal: number;
+  surcharge: number;
+  total: number;
+  rate: string;
+} {
+  const hour = new Date().getHours();
+  const isNight = hour >= 22 || hour < 6;
+
+  let base = config.baseCharge;
+  let perKmRate: number;
+  let rateLabel: string;
+
+  if (distanceKm <= 5) {
+    // Flat rate for short trips
+    const subtotal = 99;
+    const surchargeAmt = isNight
+      ? Math.round(subtotal * (config.nightSurcharge / 100))
+      : 0;
+    const total = Math.max(config.minFare, subtotal + surchargeAmt);
+    return {
+      base: 99,
+      perKm: 0,
+      subtotal,
+      surcharge: surchargeAmt,
+      total,
+      rate: "Flat rate (0-5km)",
+    };
+  }
+  if (distanceKm <= 20) {
+    perKmRate = config.perKmRate;
+    rateLabel = `₹${config.perKmRate}/km (6-20km)`;
+  } else {
+    perKmRate = Math.max(10, config.perKmRate - 2);
+    rateLabel = `₹${perKmRate}/km (20km+ discount)`;
+  }
+
+  const kmCharge = Math.round(distanceKm * perKmRate);
+  const subtotal = base + kmCharge;
+  const surchargeAmt = isNight
+    ? Math.round(subtotal * (config.nightSurcharge / 100))
+    : 0;
+  const total = Math.max(config.minFare, subtotal + surchargeAmt);
+  return {
+    base,
+    perKm: kmCharge,
+    subtotal,
+    surcharge: surchargeAmt,
+    total,
+    rate: rateLabel,
+  };
+}
 
 function lookupDriver(path: string): DriverData | undefined {
   const lastSegment = path.split("/").pop() || "";
@@ -171,6 +270,21 @@ export default function BookingPage() {
     }
   }, [actor]);
 
+  // Fare estimate calculation
+  const fareEstimate = useMemo(() => {
+    if (
+      pickupLat === null ||
+      pickupLng === null ||
+      dropLat === null ||
+      dropLng === null
+    ) {
+      return null;
+    }
+    const distKm = haversineKm(pickupLat, pickupLng, dropLat, dropLng);
+    const config = getPricingConfig();
+    return { ...calculateFare(distKm, config), distKm };
+  }, [pickupLat, pickupLng, dropLat, dropLng]);
+
   const getDays = () => {
     if (!form.startDate || !form.endDate) return 0;
     const diff =
@@ -241,7 +355,6 @@ export default function BookingPage() {
       // silently proceed with generated ID
     } finally {
       setLoading(false);
-      // Save to local store for admin dashboard
       saveBooking({
         id: generatedId,
         customerName: form.customerName,
@@ -265,7 +378,6 @@ export default function BookingPage() {
         status: "pending",
         createdAt: new Date().toISOString(),
       });
-      // Also save to backend (fire-and-forget)
       apiSaveBooking({
         customerName: form.customerName,
         customerPhone: form.customerPhone,
@@ -285,7 +397,6 @@ export default function BookingPage() {
         createdAt: new Date().toISOString(),
       }).catch(() => {});
       setBookingId(generatedId);
-      // Notify driver about new booking request
       try {
         const requests = JSON.parse(
           localStorage.getItem("driver_booking_requests") || "[]",
@@ -314,7 +425,6 @@ export default function BookingPage() {
     }
   };
 
-  // Login required check
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -326,8 +436,7 @@ export default function BookingPage() {
             Login Required
           </h2>
           <p className="text-gray-500 text-sm mb-6">
-            Please login to book a driver. Your safety and security is our
-            priority.
+            Please login to book a driver.
           </p>
           <div className="space-y-3">
             <a
@@ -400,7 +509,6 @@ export default function BookingPage() {
                 <strong>Important:</strong> Please complete payment within 2
                 hours to confirm your booking.
               </div>
-              {/* Track My Ride Button */}
               <button
                 type="button"
                 onClick={() => navigate(`/track/${bookingId}`)}
@@ -412,7 +520,6 @@ export default function BookingPage() {
             </CardContent>
           </Card>
 
-          {/* Payment Section */}
           <Card className="shadow-md">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
@@ -426,7 +533,6 @@ export default function BookingPage() {
               </p>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* PhonePe QR */}
               <div className="text-center">
                 <p className="font-semibold text-gray-800 mb-3">
                   📱 Scan &amp; Pay via PhonePe / UPI
@@ -453,7 +559,6 @@ export default function BookingPage() {
                 </div>
               </div>
 
-              {/* Bank Details */}
               <div className="bg-gray-50 rounded-xl p-4 space-y-3">
                 <p className="font-semibold text-gray-800 text-sm">
                   🏦 Axis Bank Details
@@ -565,13 +670,17 @@ export default function BookingPage() {
               >
                 <span className="text-2xl mb-1">{t.icon}</span>
                 <span
-                  className={`font-bold text-sm ${bookingType === t.id ? "text-green-700" : "text-gray-700"}`}
+                  className={`font-bold text-sm ${
+                    bookingType === t.id ? "text-green-700" : "text-gray-700"
+                  }`}
                 >
                   {t.label}
                 </span>
                 <span className="text-xs text-gray-500 mt-0.5">{t.desc}</span>
                 <span
-                  className={`text-xs font-semibold mt-1 ${bookingType === t.id ? "text-green-600" : "text-gray-400"}`}
+                  className={`text-xs font-semibold mt-1 ${
+                    bookingType === t.id ? "text-green-600" : "text-gray-400"
+                  }`}
                 >
                   {t.rate}
                 </span>
@@ -738,6 +847,62 @@ export default function BookingPage() {
                   }));
                 }}
               />
+            </CardContent>
+          </Card>
+
+          {/* Fare Estimator */}
+          <Card className="border-2 border-dashed border-green-200 bg-gradient-to-br from-green-50 to-emerald-50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Zap size={16} className="text-green-600" />
+                Fare Estimate
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {fareEstimate ? (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Distance (road)</span>
+                    <span className="font-medium">
+                      {fareEstimate.distKm.toFixed(1)} km
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Rate</span>
+                    <span className="font-medium">{fareEstimate.rate}</span>
+                  </div>
+                  {fareEstimate.base > 0 && fareEstimate.perKm > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Base + per-km</span>
+                      <span className="font-medium">
+                        ₹{fareEstimate.base} + ₹{fareEstimate.perKm}
+                      </span>
+                    </div>
+                  )}
+                  {fareEstimate.surcharge > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-amber-700">🌙 Night surcharge</span>
+                      <span className="font-medium text-amber-700">
+                        +₹{fareEstimate.surcharge}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-bold text-base border-t border-green-200 pt-2 mt-1">
+                    <span className="text-green-800">Estimated Fare</span>
+                    <span className="text-green-700 text-lg">
+                      ₹{fareEstimate.total}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    * Estimate based on road distance. Final amount may vary.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400 text-center py-2">
+                  Pin both pickup and drop locations on the map to see fare
+                  estimate
+                </p>
+              )}
             </CardContent>
           </Card>
 
