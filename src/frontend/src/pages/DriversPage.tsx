@@ -225,7 +225,7 @@ export default function DriversPage() {
               Clear filter
             </button>
           )}
-          <span className="ml-auto text-sm text-gray-500">
+          <span className="ml-auto text-sm font-semibold text-green-700 bg-green-50 px-3 py-1 rounded-full border border-green-200">
             {filtered.length} drivers found · Total:{" "}
             {seedDrivers.length + approvedRegsCount} on DriveEase
           </span>

@@ -1,30 +1,33 @@
-# DriveEase
+# DriveEase - Dashboard Fix & Admin Earnings Panel
 
 ## Current State
-All data (bookings, registrations, OTP logins, enquiries, driver online status) is stored in browser localStorage. This means data is per-device only — customers booking on their phones is invisible to the admin on a different device. Live drivers page only reads localStorage so newly approved drivers don't appear cross-device.
+- Admin dashboard exists at /admin with tabs: Bookings, Drivers, Registrations, Customers, Enquiries, Settings, Live Drivers
+- Navbar has Services dropdown with: Plans, Insurance, Pay, My Bookings
+- Live Drivers page shows driver count inline but no prominent counter for Find Drivers column
+- No Driver Earnings panel in admin
+- Bell icon links to My Bookings
 
 ## Requested Changes (Diff)
 
 ### Add
-- Backend canister functions with NO auth requirement (public) for: saveBooking, saveRegistration, saveOtpLogin, saveEnquiry, setDriverOnlineStatus, getDriverOnlineStatuses
-- Backend admin functions (password: "126312" checked client-side) for: getAllBookings, getAllRegistrations, getAllOtpLogins, getAllEnquiries, updateBookingStatus, updateRegistrationStatus, updateEnquiryStatus
-- Total driver count = seed drivers + approved registrations from backend
+- New "Driver Earnings" tab in AdminDashboard: shows each driver, total bookings received, total earnings (sum of booking amounts), commission taken (18%), net payout per driver
+- Live driver count badge/stat on the Live Drivers page header and on the DriversPage (Find Driver section)
+- Total driver count shown prominently on Find Drivers page
 
 ### Modify
-- BookingPage: save bookings to backend canister (in addition to localStorage fallback)
-- DriverRegistrationPage: save registrations to backend canister
-- OtpLoginPage: save OTP login records to backend canister
-- SubscriptionsPage: save enquiries to backend canister
-- AdminDashboard: read all 5 tabs (Bookings, Registrations, Customers, Enquiries, Live Drivers) from backend canister, still auto-refresh every 10s
-- LiveDriversPage: read driver online status from backend canister, approved registrations from backend, refresh every 10s
-- DriverLoginPage: persist online/offline status to backend canister so it's visible cross-device
+- Remove "My Bookings" from navbar Services dropdown and from mobile menu
+- Remove bell icon link to /my-bookings from navbar (or keep bell but don't show My Bookings in Services)
+- Fix Pay, Plans, Insurance links in Services dropdown to ensure they route to /payment, /subscriptions, /insurance correctly
+- Admin dashboard: ensure all tabs auto-refresh every 10s from backend + localStorage fallback, and all data is linked properly
+- Live Drivers page: show total driver count prominently ("X drivers available")
 
 ### Remove
-- localStorage-only reads in AdminDashboard for bookings/registrations/customers/enquiries
+- "My Bookings" from Services dropdown in Navbar
+- "My Bookings" from mobile menu Services section
 
 ## Implementation Plan
-1. Generate Motoko backend with simple public store functions for all 5 data types + driver online status
-2. Update frontend utils to write to backend canister (with localStorage fallback for offline)
-3. Update AdminDashboard to read from backend API for all tabs with 10s polling
-4. Update LiveDriversPage to read online statuses from backend
-5. Update DriverLoginPage to push status to backend on toggle
+1. Navbar.tsx: Remove My Bookings from servicesLinks array (both desktop and mobile)
+2. AdminDashboard.tsx: Add "driver-earnings" to Tab type, add nav item "Driver Earnings", render earnings panel that groups bookings by driverName, sums amounts, shows commission (18%), net payout
+3. LiveDriversPage.tsx: Already shows count - verify count display is prominent
+4. DriversPage.tsx: Add a stat showing total drivers listed
+5. Validate and build

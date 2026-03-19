@@ -74,7 +74,8 @@ type Tab =
   | "customers"
   | "enquiries"
   | "settings"
-  | "live-drivers";
+  | "live-drivers"
+  | "driver-earnings";
 
 const ADMIN_PASSWORD = "126312";
 const AUTH_KEY = "admin_auth";
@@ -360,6 +361,11 @@ export default function AdminDashboard() {
       label: "Live Drivers",
       icon: <MapPin size={18} />,
       count: onlineCount,
+    },
+    {
+      key: "driver-earnings" as Tab,
+      label: "Driver Earnings",
+      icon: <BarChart3 size={18} />,
     },
   ];
 
@@ -1315,6 +1321,10 @@ export default function AdminDashboard() {
               backendRegistrations={registrations}
             />
           )}
+
+          {tab === "driver-earnings" && (
+            <DriverEarningsTab bookings={bookings} />
+          )}
         </div>
       </main>
 
@@ -1433,6 +1443,112 @@ export default function AdminDashboard() {
           )}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// ── DriverEarningsTab ────────────────────────────────────────────────────
+function DriverEarningsTab({ bookings }: { bookings: LocalBooking[] }) {
+  // Group bookings by driverName
+  const earningsMap: Record<string, { count: number; gross: number }> = {};
+  for (const b of bookings) {
+    const name = b.driverName || "Unknown Driver";
+    if (!earningsMap[name]) earningsMap[name] = { count: 0, gross: 0 };
+    earningsMap[name].count += 1;
+    earningsMap[name].gross += Number(b.total) || 0;
+  }
+
+  const rows = Object.entries(earningsMap).map(([name, data]) => ({
+    name,
+    count: data.count,
+    gross: data.gross,
+    commission: Math.round(data.gross * 0.18),
+    net: Math.round(data.gross * 0.82),
+  }));
+
+  const totalBookings = bookings.length;
+  const totalRevenue = bookings.reduce((s, b) => s + (Number(b.total) || 0), 0);
+  const totalCommission = Math.round(totalRevenue * 0.18);
+
+  return (
+    <div className="p-6 space-y-6">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-gray-900 rounded-xl p-4 border border-gray-700">
+          <p className="text-gray-400 text-xs mb-1">Total Bookings</p>
+          <p className="text-2xl font-bold text-white">{totalBookings}</p>
+        </div>
+        <div className="bg-gray-900 rounded-xl p-4 border border-gray-700">
+          <p className="text-gray-400 text-xs mb-1">Total Platform Revenue</p>
+          <p className="text-2xl font-bold text-green-400">
+            ₹{totalRevenue.toLocaleString("en-IN")}
+          </p>
+        </div>
+        <div className="bg-gray-900 rounded-xl p-4 border border-gray-700">
+          <p className="text-gray-400 text-xs mb-1">
+            Total Commission Earned (18%)
+          </p>
+          <p className="text-2xl font-bold text-yellow-400">
+            ₹{totalCommission.toLocaleString("en-IN")}
+          </p>
+        </div>
+      </div>
+
+      {/* Earnings Table */}
+      <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-700">
+          <h3 className="text-white font-semibold text-sm">
+            Driver Earnings Breakdown
+          </h3>
+        </div>
+        {rows.length === 0 ? (
+          <div
+            className="p-8 text-center text-gray-500"
+            data-ocid="admin.driver-earnings.empty_state"
+          >
+            No booking data yet
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-700 text-gray-400 text-xs uppercase">
+                  <th className="px-4 py-3 text-left">Driver Name</th>
+                  <th className="px-4 py-3 text-right">Total Bookings</th>
+                  <th className="px-4 py-3 text-right">Gross Earnings</th>
+                  <th className="px-4 py-3 text-right">Commission (18%)</th>
+                  <th className="px-4 py-3 text-right">Net Payout</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, idx) => (
+                  <tr
+                    key={row.name}
+                    className="border-b border-gray-800 hover:bg-gray-800 transition-colors"
+                    data-ocid={`admin.driver-earnings.item.${idx + 1}`}
+                  >
+                    <td className="px-4 py-3 text-white font-medium">
+                      {row.name}
+                    </td>
+                    <td className="px-4 py-3 text-center text-gray-300">
+                      {row.count}
+                    </td>
+                    <td className="px-4 py-3 text-right text-gray-300">
+                      ₹{row.gross.toLocaleString("en-IN")}
+                    </td>
+                    <td className="px-4 py-3 text-right text-red-400">
+                      ₹{row.commission.toLocaleString("en-IN")}
+                    </td>
+                    <td className="px-4 py-3 text-right text-green-400 font-semibold">
+                      ₹{row.net.toLocaleString("en-IN")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

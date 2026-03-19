@@ -35,7 +35,6 @@ export default function Navbar() {
     { to: "/subscriptions", label: "Plans" },
     { to: "/insurance", label: "Insurance" },
     { to: "/payment", label: "Pay" },
-    { to: "/my-bookings", label: "My Bookings" },
   ];
 
   return (
