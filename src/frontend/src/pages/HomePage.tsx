@@ -173,8 +173,9 @@ export default function HomePage() {
                 alt="Professional DriveEase driver standing by car"
                 className="relative rounded-2xl shadow-2xl object-cover"
                 style={{
-                  width: "520px",
-                  height: "600px",
+                  width: "480px",
+                  height: "580px",
+                  objectFit: "cover",
                   objectPosition: "center top",
                   boxShadow:
                     "0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(22,163,74,0.15)",
