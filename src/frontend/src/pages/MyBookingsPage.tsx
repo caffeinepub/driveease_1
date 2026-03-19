@@ -26,6 +26,7 @@ import {
 import { Textarea } from "../components/ui/textarea";
 import { seedDrivers } from "../data/drivers";
 import { Link } from "../router";
+import { apiGetBookings } from "../utils/backendApi";
 
 interface LocalBooking {
   id: number;
@@ -100,6 +101,30 @@ function getLocalBookings(): LocalBooking[] {
   } catch {
     return [];
   }
+}
+
+function getDriverExtras(
+  driverId?: number,
+  driverName?: string,
+): { city?: string; vehicleType?: string } {
+  try {
+    const regs = JSON.parse(
+      localStorage.getItem("driveease_registrations") || "[]",
+    );
+    // Try by ID first
+    if (driverId) {
+      const reg = regs.find((r: any) => r.id === driverId);
+      if (reg) return { city: reg.city, vehicleType: reg.vehicleType };
+    }
+    // Try by name
+    if (driverName) {
+      const reg = regs.find((r: any) => r.name === driverName);
+      if (reg) return { city: reg.city, vehicleType: reg.vehicleType };
+    }
+  } catch {
+    /* */
+  }
+  return {};
 }
 
 function downloadInvoice(booking: LocalBooking) {
@@ -266,14 +291,29 @@ export default function MyBookingsPage() {
   const [comment, setComment] = useState("");
   const [feedbackSent, setFeedbackSent] = useState(false);
 
-  const reload = useCallback(() => {
+  const reload = useCallback(async () => {
     const phone = getCustomerPhone();
     setCustomerPhone(phone);
-    const all = getLocalBookings();
-    const filtered = phone
-      ? all.filter((b) => !b.customerPhone || b.customerPhone === phone)
-      : all;
-    setBookings(filtered);
+    const localAll = getLocalBookings();
+    // Also fetch from backend and merge (backend takes priority)
+    try {
+      const backendBks = await apiGetBookings();
+      // Merge: backend entries override local ones by ID
+      const merged = [...backendBks] as unknown[] as LocalBooking[];
+      for (const lb of localAll) {
+        if (!merged.some((b) => b.id === lb.id)) merged.push(lb);
+      }
+      const filtered = phone
+        ? merged.filter((b) => !b.customerPhone || b.customerPhone === phone)
+        : merged;
+      setBookings(filtered);
+    } catch {
+      // Fallback to local only
+      const filtered = phone
+        ? localAll.filter((b) => !b.customerPhone || b.customerPhone === phone)
+        : localAll;
+      setBookings(filtered);
+    }
     try {
       const notifs = JSON.parse(
         localStorage.getItem("booking_notifications") || "[]",
@@ -444,7 +484,29 @@ export default function MyBookingsPage() {
                         </CardTitle>
                         <p className="text-gray-500 text-xs mt-0.5">
                           {driverName}
+                          {(() => {
+                            const extras = getDriverExtras(
+                              b.driverId,
+                              b.driverName,
+                            );
+                            return extras.city ? (
+                              <span className="ml-1 text-gray-400">
+                                · {extras.city}
+                              </span>
+                            ) : null;
+                          })()}
                         </p>
+                        {(() => {
+                          const extras = getDriverExtras(
+                            b.driverId,
+                            b.driverName,
+                          );
+                          return extras.vehicleType ? (
+                            <span className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
+                              🚗 {extras.vehicleType}
+                            </span>
+                          ) : null;
+                        })()}
                         {b.bookingType && (
                           <span className="text-xs bg-green-50 text-green-700 border border-green-200 rounded px-1.5 py-0.5 mt-1 inline-block">
                             {b.bookingType}

@@ -1,19 +1,8 @@
-import { Bell, ChevronDown, Download, Menu, X } from "lucide-react";
+import { ChevronDown, Download, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "../router";
 import { useInstallPrompt } from "./PWAInstallBanner";
 import { Button } from "./ui/button";
-
-function getUnreadNotifications(): number {
-  try {
-    const notifs = JSON.parse(
-      localStorage.getItem("booking_notifications") || "[]",
-    );
-    return notifs.filter((n: { read: boolean }) => !n.read).length;
-  } catch {
-    return 0;
-  }
-}
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -23,7 +12,6 @@ export default function Navbar() {
 
   const stored = localStorage.getItem("otp_customer");
   const customer = stored ? JSON.parse(stored) : null;
-  const unreadCount = getUnreadNotifications();
 
   const mainLinks = [
     { to: "/", label: "Home" },
@@ -35,6 +23,7 @@ export default function Navbar() {
     { to: "/subscriptions", label: "Plans" },
     { to: "/insurance", label: "Insurance" },
     { to: "/payment", label: "Pay" },
+    { to: "/driver-nav", label: "Driver Navigation" },
   ];
 
   return (
@@ -81,7 +70,7 @@ export default function Navbar() {
             </button>
             {servicesOpen && (
               <div
-                className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl min-w-[160px] z-50"
+                className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl min-w-[180px] z-50"
                 data-ocid="navbar.services.dropdown_menu"
               >
                 {servicesLinks.map((l) => (
@@ -96,33 +85,43 @@ export default function Navbar() {
                   </Link>
                 ))}
                 {customer?.loggedIn && (
-                  <Link
-                    to="/my-bookings"
-                    onClick={() => setServicesOpen(false)}
-                    className="block px-4 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded-b-lg"
-                    data-ocid="navbar.link"
-                  >
-                    My History
-                  </Link>
+                  <>
+                    <Link
+                      to="/my-bookings"
+                      onClick={() => setServicesOpen(false)}
+                      className="block px-4 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-gray-700"
+                      data-ocid="navbar.link"
+                    >
+                      My History
+                    </Link>
+                    <Link
+                      to="/profile"
+                      onClick={() => setServicesOpen(false)}
+                      className="block px-4 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded-b-lg"
+                      data-ocid="navbar.link"
+                    >
+                      My Profile
+                    </Link>
+                  </>
                 )}
               </div>
             )}
           </div>
 
-          {/* Bell notification icon */}
-          <Link
-            to="/my-bookings"
-            className="relative px-2 py-2 text-gray-300 hover:text-white"
-            data-ocid="navbar.notifications.button"
-          >
-            <Bell size={18} />
-            {unreadCount > 0 && (
-              <span
-                className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"
-                data-ocid="navbar.notifications.badge"
-              />
-            )}
-          </Link>
+          {/* My Bookings — visible when customer is logged in */}
+          {customer?.loggedIn && (
+            <Link
+              to="/my-bookings"
+              className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
+                pathname === "/my-bookings"
+                  ? "text-green-400 bg-gray-800"
+                  : "text-gray-300 hover:text-white hover:bg-gray-800"
+              }`}
+              data-ocid="navbar.link"
+            >
+              My Bookings
+            </Link>
+          )}
 
           <Link
             to="/driver-login"
@@ -137,13 +136,26 @@ export default function Navbar() {
           </Link>
 
           {customer?.loggedIn ? (
-            <Link
-              to="/login"
-              className="px-3 py-2 rounded text-sm font-medium text-green-300 hover:text-white hover:bg-gray-800"
-              data-ocid="navbar.link"
-            >
-              Hi, {customer.name.split(" ")[0]}
-            </Link>
+            <div className="flex items-center gap-1">
+              <Link
+                to="/profile"
+                className="px-3 py-2 rounded text-sm font-medium text-green-300 hover:text-white hover:bg-gray-800"
+                data-ocid="navbar.link"
+              >
+                Hi, {customer.name.split(" ")[0]}
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.removeItem("otp_customer");
+                  window.location.reload();
+                }}
+                className="px-2 py-1 rounded text-xs font-semibold text-red-400 hover:text-white hover:bg-red-900/60 border border-red-800/50 transition-colors"
+                data-ocid="navbar.close_button"
+              >
+                Logout
+              </button>
+            </div>
           ) : (
             <Link
               to="/login"
@@ -201,6 +213,17 @@ export default function Navbar() {
               {l.label}
             </Link>
           ))}
+          {/* My Bookings in mobile nav for logged-in customers */}
+          {customer?.loggedIn && (
+            <Link
+              to="/my-bookings"
+              onClick={() => setOpen(false)}
+              className="block py-2 text-green-300 hover:text-green-400 font-medium"
+              data-ocid="navbar.link"
+            >
+              My Bookings
+            </Link>
+          )}
           <div className="py-1 border-t border-gray-700 mt-1">
             <p className="text-xs text-gray-500 py-1 uppercase tracking-wider">
               Services
@@ -217,14 +240,24 @@ export default function Navbar() {
               </Link>
             ))}
             {customer?.loggedIn && (
-              <Link
-                to="/my-bookings"
-                onClick={() => setOpen(false)}
-                className="block py-2 text-gray-300 hover:text-green-400 pl-2"
-                data-ocid="navbar.link"
-              >
-                My History
-              </Link>
+              <>
+                <Link
+                  to="/my-bookings"
+                  onClick={() => setOpen(false)}
+                  className="block py-2 text-gray-300 hover:text-green-400 pl-2"
+                  data-ocid="navbar.link"
+                >
+                  My History
+                </Link>
+                <Link
+                  to="/profile"
+                  onClick={() => setOpen(false)}
+                  className="block py-2 text-gray-300 hover:text-green-400 pl-2"
+                  data-ocid="navbar.link"
+                >
+                  My Profile
+                </Link>
+              </>
             )}
           </div>
           <Link
@@ -235,16 +268,38 @@ export default function Navbar() {
           >
             Driver Login
           </Link>
-          <Link
-            to="/login"
-            onClick={() => setOpen(false)}
-            className="block py-2 text-gray-300 hover:text-green-400"
-            data-ocid="navbar.mobile.link"
-          >
-            {customer?.loggedIn
-              ? `Hi, ${customer.name.split(" ")[0]}`
-              : "Login"}
-          </Link>
+          {customer?.loggedIn ? (
+            <div className="py-2 border-t border-gray-700 mt-1">
+              <Link
+                to="/profile"
+                onClick={() => setOpen(false)}
+                className="block py-1 text-green-300 font-medium hover:text-green-200"
+                data-ocid="navbar.link"
+              >
+                Hi, {customer.name.split(" ")[0]} — My Profile
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.removeItem("otp_customer");
+                  window.location.reload();
+                }}
+                className="block w-full text-left py-2 text-red-400 hover:text-red-300 font-medium"
+                data-ocid="navbar.mobile.close_button"
+              >
+                Logout
+              </button>
+            </div>
+          ) : (
+            <Link
+              to="/login"
+              onClick={() => setOpen(false)}
+              className="block py-2 text-gray-300 hover:text-green-400"
+              data-ocid="navbar.mobile.link"
+            >
+              Login
+            </Link>
+          )}
           {/* Mobile Install App button */}
           {canInstall && (
             <button

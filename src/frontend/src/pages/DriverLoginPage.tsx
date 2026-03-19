@@ -25,7 +25,10 @@ import {
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Link, useNavigate } from "../router";
-import { apiSetDriverOnlineStatus } from "../utils/backendApi";
+import {
+  apiGetRegistrations,
+  apiSetDriverOnlineStatus,
+} from "../utils/backendApi";
 
 interface DriverSession {
   driverId: number;
@@ -163,6 +166,7 @@ export default function DriverLoginPage() {
   const [accountHolder, setAccountHolder] = useState("");
   const [withdrawStatus, setWithdrawStatus] = useState("");
   const [withdrawError, setWithdrawError] = useState("");
+  const [checkingBackend, setCheckingBackend] = useState(false);
 
   useEffect(() => {
     if (session) {
@@ -180,35 +184,67 @@ export default function DriverLoginPage() {
     return () => clearInterval(interval);
   }, [session]);
 
-  const sendOtp = () => {
+  const sendOtp = async () => {
     if (!phone || phone.length < 10) {
       setLoginError("Please enter a valid 10-digit phone number.");
       return;
     }
+    type RegEntry = {
+      phone: string;
+      status: string;
+      submittedAt: string;
+      name?: string;
+      city?: string;
+      id?: number;
+    };
+    let regs: RegEntry[] = [];
     try {
-      const regs: Array<{
-        phone: string;
-        status: string;
-        submittedAt: string;
-      }> = JSON.parse(localStorage.getItem("driveease_registrations") || "[]");
-      const reg = regs.find((r) => r.phone === phone);
-      if (!reg) {
-        setLoginError(
-          "No registration found for this number. Please register first.",
-        );
-        return;
-      }
-      if (reg.status === "pending") {
-        setPendingSubmittedAt(reg.submittedAt);
-        setStatusScreen("pending");
-        return;
-      }
-      if (reg.status === "rejected") {
-        setStatusScreen("rejected");
-        return;
-      }
+      regs = JSON.parse(
+        localStorage.getItem("driveease_registrations") || "[]",
+      );
     } catch {
       /* continue */
+    }
+    let reg = regs.find((r) => r.phone === phone);
+    if (!reg) {
+      setCheckingBackend(true);
+      setLoginError("");
+      try {
+        const backendRegs = await apiGetRegistrations();
+        reg = backendRegs.find((r: any) => r.phone === phone) as
+          | RegEntry
+          | undefined;
+        if (reg) {
+          const merged = [
+            ...regs,
+            ...backendRegs.filter(
+              (b: any) => !regs.find((l) => l.phone === b.phone),
+            ),
+          ];
+          localStorage.setItem(
+            "driveease_registrations",
+            JSON.stringify(merged),
+          );
+        }
+      } catch {
+        /* continue */
+      }
+      setCheckingBackend(false);
+    }
+    if (!reg) {
+      setLoginError(
+        "No registration found for this number. Please register first.",
+      );
+      return;
+    }
+    if (reg.status === "pending") {
+      setPendingSubmittedAt(reg.submittedAt);
+      setStatusScreen("pending");
+      return;
+    }
+    if (reg.status === "rejected") {
+      setStatusScreen("rejected");
+      return;
     }
     const code = String(Math.floor(1000 + Math.random() * 9000));
     setGeneratedOtp(code);
@@ -216,7 +252,7 @@ export default function DriverLoginPage() {
     setLoginError("");
   };
 
-  const verifyOtp = () => {
+  const verifyOtp = async () => {
     if (otp !== generatedOtp) {
       setLoginError("Invalid OTP. Please try again.");
       return;
@@ -232,22 +268,34 @@ export default function DriverLoginPage() {
     }
     setDriverDeviceSession(phone, deviceId);
     try {
-      const regDrivers: Array<{
+      let regDrivers: Array<{
         phone: string;
         name: string;
         city: string;
         id: number;
         submittedAt: string;
       }> = JSON.parse(localStorage.getItem("driveease_registrations") || "[]");
-      const foundReg = regDrivers.find((d) => d.phone === phone);
+      let foundReg = regDrivers.find((d) => d.phone === phone);
+      // If not found in localStorage, search backend (cache was set in sendOtp, but just in case)
+      if (!foundReg) {
+        try {
+          const backendRegs = await apiGetRegistrations();
+          foundReg = backendRegs.find(
+            (r: any) => r.phone === phone,
+          ) as typeof foundReg;
+        } catch {
+          /* continue */
+        }
+      }
       if (foundReg) {
         const sess: DriverSession = {
-          driverId: foundReg.id || Math.floor(Math.random() * 10000),
-          name: foundReg.name || "Driver",
-          phone: foundReg.phone,
+          driverId: (foundReg as any).id || Math.floor(Math.random() * 10000),
+          name: (foundReg as any).name || "Driver",
+          phone: (foundReg as any).phone,
           city: (foundReg as any).city || "Delhi",
           pricePerDay: 1200,
-          registeredAt: foundReg.submittedAt || new Date().toISOString(),
+          registeredAt:
+            (foundReg as any).submittedAt || new Date().toISOString(),
         };
         localStorage.setItem("driver_session", JSON.stringify(sess));
         setSession(sess);
@@ -539,10 +587,11 @@ export default function DriverLoginPage() {
               {!otpSent ? (
                 <Button
                   onClick={sendOtp}
+                  disabled={checkingBackend}
                   className="w-full bg-[#22c55e] hover:bg-[#16a34a] text-black font-semibold"
                   data-ocid="driver_login.submit_button"
                 >
-                  Send OTP
+                  {checkingBackend ? "Checking registration..." : "Send OTP"}
                 </Button>
               ) : (
                 <div className="space-y-3">

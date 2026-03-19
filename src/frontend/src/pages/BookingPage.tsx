@@ -32,7 +32,7 @@ import {
 import { seedDrivers } from "../data/drivers";
 import { useActor } from "../hooks/useActor";
 import { Link, useNavigate, usePath } from "../router";
-import { apiSaveBooking } from "../utils/backendApi";
+import { apiGetRegistrations, apiSaveBooking } from "../utils/backendApi";
 import { saveBooking } from "../utils/localStore";
 
 type BookingType = "hourly" | "daily" | "outstation";
@@ -48,22 +48,22 @@ const BOOKING_TYPES: {
     id: "hourly",
     label: "Hourly",
     desc: "Short errands & local trips",
-    rate: "₹200/hr",
-    icon: "⏱️",
+    rate: "\u20b9200/hr",
+    icon: "\u23f1\ufe0f",
   },
   {
     id: "daily",
     label: "Daily",
     desc: "Full day office & city use",
-    rate: "₹1,200/day",
-    icon: "📅",
+    rate: "\u20b91,200/day",
+    icon: "\ud83d\udcc5",
   },
   {
     id: "outstation",
     label: "Outstation",
     desc: "Long distance trips",
-    rate: "₹2,500/day",
-    icon: "🛣️",
+    rate: "\u20b92,500/day",
+    icon: "\ud83d\udee3\ufe0f",
   },
 ];
 
@@ -83,7 +83,7 @@ function haversineKm(
     Math.cos((lat1 * Math.PI) / 180) *
       Math.cos((lat2 * Math.PI) / 180) *
       Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.3; // road factor
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.3;
 }
 
 interface PricingConfig {
@@ -123,12 +123,7 @@ function calculateFare(
   const hour = new Date().getHours();
   const isNight = hour >= 22 || hour < 6;
 
-  let base = config.baseCharge;
-  let perKmRate: number;
-  let rateLabel: string;
-
   if (distanceKm <= 5) {
-    // Flat rate for short trips
     const subtotal = 99;
     const surchargeAmt = isNight
       ? Math.round(subtotal * (config.nightSurcharge / 100))
@@ -143,14 +138,16 @@ function calculateFare(
       rate: "Flat rate (0-5km)",
     };
   }
+  let perKmRate: number;
+  let rateLabel: string;
   if (distanceKm <= 20) {
     perKmRate = config.perKmRate;
-    rateLabel = `₹${config.perKmRate}/km (6-20km)`;
+    rateLabel = `\u20b9${config.perKmRate}/km (6-20km)`;
   } else {
     perKmRate = Math.max(10, config.perKmRate - 2);
-    rateLabel = `₹${perKmRate}/km (20km+ discount)`;
+    rateLabel = `\u20b9${perKmRate}/km (20km+ discount)`;
   }
-
+  const base = config.baseCharge;
   const kmCharge = Math.round(distanceKm * perKmRate);
   const subtotal = base + kmCharge;
   const surchargeAmt = isNight
@@ -167,47 +164,59 @@ function calculateFare(
   };
 }
 
+interface RegDriver {
+  id: number;
+  name: string;
+  phone: string;
+  city: string;
+  state: string;
+  status: string;
+  vehicleType?: string;
+  experience?: string;
+  languages?: string;
+  workAreas?: string;
+}
+
+function lookupRegDriver(regId: string): RegDriver | undefined {
+  try {
+    const regs: RegDriver[] = JSON.parse(
+      localStorage.getItem("driveease_registrations") || "[]",
+    );
+    // Try by ID first (regId is the registration ID as a string)
+    const byId = regs.find((r) => String(r.id) === regId);
+    if (byId) return byId;
+    // Fallback: try by phone
+    return regs.find((r) => r.phone === regId);
+  } catch {
+    return undefined;
+  }
+}
+
 function lookupDriver(path: string): DriverData | undefined {
   const lastSegment = path.split("/").pop() || "";
   const isRegisteredDriver = lastSegment.startsWith("reg-");
   if (isRegisteredDriver) {
-    const regPhone = lastSegment.replace("reg-", "");
-    try {
-      const regs: Array<{
-        id: number;
-        name: string;
-        phone: string;
-        email?: string;
-        city: string;
-        state: string;
-        status: string;
-      }> = JSON.parse(localStorage.getItem("driveease_registrations") || "[]");
-      const reg = regs.find((r) => r.phone === regPhone);
-      if (reg) {
-        return {
-          id:
-            reg.id ||
-            Math.abs(
-              reg.phone.split("").reduce((a, c) => a + c.charCodeAt(0), 0) %
-                99999,
-            ),
-          name: reg.name,
-          city: reg.city,
-          state: reg.state,
-          experienceYears: 2,
-          languages: ["Hindi", "English"],
-          rating: 4.5,
-          pricePerDay: 1200,
-          isAvailable: true,
-          isVerified: reg.status === "approved",
-          trustBadges: ["Background Verified"],
-          phone: reg.phone,
-          photoUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(reg.name)}&background=16a34a&color=fff&size=128`,
-          vehicleType: "Personal Car / Sedan",
-        } as unknown as DriverData;
-      }
-    } catch {
-      /* ignore */
+    const regId = lastSegment.replace("reg-", "");
+    const reg = lookupRegDriver(regId);
+    if (reg) {
+      return {
+        id: reg.id,
+        name: reg.name,
+        city: reg.city,
+        state: reg.state,
+        experienceYears: 2,
+        languages: reg.languages
+          ? reg.languages.split(",").map((l) => l.trim())
+          : ["Hindi"],
+        rating: 4.5,
+        pricePerDay: 1200,
+        isAvailable: true,
+        isVerified: reg.status === "approved",
+        trustBadges: ["Background Verified"],
+        phone: reg.phone,
+        photoUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(reg.name)}&background=16a34a&color=fff&size=128`,
+        vehicleType: reg.vehicleType || "Personal Car / Sedan",
+      } as unknown as DriverData;
     }
     return undefined;
   }
@@ -215,15 +224,31 @@ function lookupDriver(path: string): DriverData | undefined {
   return seedDrivers.find((d) => d.id === driverId);
 }
 
+function getCustomerCity(): string {
+  try {
+    const s = localStorage.getItem("otp_customer");
+    if (!s) return "";
+    return JSON.parse(s)?.city || "";
+  } catch {
+    return "";
+  }
+}
+
+function maskPhone(phone: string): string {
+  if (!phone || phone.length < 4) return "****";
+  return `****${phone.slice(-4)}`;
+}
+
 export default function BookingPage() {
   const path = usePath();
   const navigate = useNavigate();
   const { actor } = useActor();
-  const driver = lookupDriver(path);
+  const [driver, setDriver] = useState<DriverData | undefined>(() =>
+    lookupDriver(path),
+  );
   const lastSegment = path.split("/").pop() || "";
-  const regPhone = lastSegment.startsWith("reg-")
-    ? lastSegment.replace("reg-", "")
-    : "";
+  const isRegDriver = lastSegment.startsWith("reg-");
+  const regId = isRegDriver ? lastSegment.replace("reg-", "") : "";
 
   const [bookingType, setBookingType] = useState<BookingType>("daily");
   const [form, setForm] = useState({
@@ -248,11 +273,64 @@ export default function BookingPage() {
   const [bookingId, setBookingId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState("");
+  const [loadingDriver, setLoadingDriver] = useState(isRegDriver && !driver);
 
-  // Login gate
   const storedCustomer = localStorage.getItem("otp_customer");
   const customer = storedCustomer ? JSON.parse(storedCustomer) : null;
   const isLoggedIn = !!customer?.loggedIn;
+  const customerCity = getCustomerCity();
+
+  // Pre-fill customer info on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("otp_customer");
+      const c = stored ? JSON.parse(stored) : null;
+      if (c?.loggedIn) {
+        setForm((f) => ({
+          ...f,
+          customerName: c.name || f.customerName,
+          customerPhone: c.phone || f.customerPhone,
+        }));
+      }
+    } catch {
+      /* */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // If registered driver not found locally, try backend
+  useEffect(() => {
+    if (!isRegDriver || driver) return;
+    setLoadingDriver(true);
+    apiGetRegistrations()
+      .then((regs) => {
+        const found = regs.find(
+          (r) => String(r.id) === regId || r.phone === regId,
+        );
+        if (found) {
+          setDriver({
+            id: found.id,
+            name: found.name,
+            city: found.city,
+            state: found.state,
+            experienceYears: 2,
+            languages: found.languages
+              ? found.languages.split(",").map((l) => l.trim())
+              : ["Hindi"],
+            rating: 4.5,
+            pricePerDay: 1200,
+            isAvailable: true,
+            isVerified: found.status === "approved",
+            trustBadges: ["Background Verified"],
+            phone: found.phone,
+            photoUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(found.name)}&background=16a34a&color=fff&size=128`,
+            vehicleType: found.vehicleType || "Personal Car / Sedan",
+          } as unknown as DriverData);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingDriver(false));
+  }, [isRegDriver, driver, regId]);
 
   useEffect(() => {
     if (actor) {
@@ -270,7 +348,6 @@ export default function BookingPage() {
     }
   }, [actor]);
 
-  // Fare estimate calculation
   const fareEstimate = useMemo(() => {
     if (
       pickupLat === null ||
@@ -330,6 +407,7 @@ export default function BookingPage() {
     }
     setLoading(true);
     const generatedId = Math.floor(10000 + Math.random() * 90000);
+    const driverPhone = (driver as unknown as { phone?: string }).phone || "";
     try {
       if (actor) {
         const startTs = BigInt(new Date(form.startDate).getTime());
@@ -352,7 +430,7 @@ export default function BookingPage() {
         }
       }
     } catch {
-      // silently proceed with generated ID
+      // silently proceed
     } finally {
       setLoading(false);
       saveBooking({
@@ -362,8 +440,7 @@ export default function BookingPage() {
         customerEmail: form.customerEmail,
         driverName: driver.name,
         driverId: driver.id,
-        driverPhone:
-          (driver as unknown as { phone?: string }).phone || regPhone || "",
+        driverPhone,
         pickupAddress: form.pickupAddress,
         dropAddress: form.dropAddress,
         pickupLat: pickupLat ?? undefined,
@@ -384,8 +461,7 @@ export default function BookingPage() {
         customerEmail: form.customerEmail,
         driverName: driver.name,
         driverId: String(driver.id),
-        driverPhone:
-          (driver as unknown as { phone?: string }).phone || regPhone || "",
+        driverPhone,
         pickupAddress: form.pickupAddress,
         dropAddress: form.dropAddress,
         startDate: form.startDate,
@@ -404,8 +480,7 @@ export default function BookingPage() {
         requests.push({
           id: generatedId,
           driverId: driver.id,
-          driverPhone:
-            (driver as unknown as { phone?: string }).phone || regPhone || "",
+          driverPhone,
           customerName: form.customerName,
           customerPhone: form.customerPhone,
           pickup: form.pickupAddress,
@@ -424,6 +499,17 @@ export default function BookingPage() {
       }
     }
   };
+
+  const driverPhone = driver
+    ? (driver as unknown as { phone?: string }).phone || ""
+    : "";
+  const driverVehicle = driver
+    ? (driver as unknown as { vehicleType?: string }).vehicleType || ""
+    : "";
+  const isSameCityDriver =
+    customerCity &&
+    driver &&
+    driver.city.toLowerCase() === customerCity.toLowerCase();
 
   if (!isLoggedIn) {
     return (
@@ -454,6 +540,17 @@ export default function BookingPage() {
               Back to Home
             </a>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadingDriver) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-gray-500">Loading driver details...</p>
         </div>
       </div>
     );
@@ -502,40 +599,147 @@ export default function BookingPage() {
               </div>
               {form.insurance && (
                 <p className="text-sm text-green-600 mb-4">
-                  Ride insurance (₹99) activated for this trip.
+                  Ride insurance (\u20b999) activated for this trip.
                 </p>
               )}
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800 mb-4">
-                <strong>Important:</strong> Please complete payment within 2
-                hours to confirm your booking.
-              </div>
-              <button
-                type="button"
-                onClick={() => navigate(`/track/${bookingId}`)}
-                className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition-colors mb-2"
-              >
-                <Navigation size={16} />
-                Track My Ride on Map
-              </button>
             </CardContent>
           </Card>
+
+          {/* Driver Details Section */}
+          <Card className="shadow-md border border-green-200">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Car size={16} className="text-green-600" />
+                Your Driver Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-14 h-14 rounded-full bg-green-600 text-white flex items-center justify-center text-xl font-bold shadow">
+                  {driver.name.charAt(0)}
+                </div>
+                <div>
+                  <p className="font-bold text-gray-900 text-lg">
+                    {driver.name}
+                  </p>
+                  {driver.isVerified && (
+                    <span className="inline-flex items-center gap-1 text-xs text-green-700 bg-green-100 rounded-full px-2 py-0.5">
+                      <CheckCircle size={10} /> Verified Driver
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-xs text-gray-400 mb-0.5">Phone</p>
+                  <p className="font-semibold text-gray-800">
+                    {maskPhone(driverPhone)}
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-xs text-gray-400 mb-0.5">City</p>
+                  <p className="font-semibold text-gray-800 flex items-center gap-1">
+                    <MapPin size={11} className="text-green-600" />
+                    {driver.city}
+                  </p>
+                </div>
+                {driverVehicle && (
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-400 mb-0.5">Vehicle</p>
+                    <p className="font-semibold text-gray-800">
+                      {driverVehicle}
+                    </p>
+                  </div>
+                )}
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-xs text-gray-400 mb-0.5">Experience</p>
+                  <p className="font-semibold text-gray-800">
+                    {driver.experienceYears}+ years
+                  </p>
+                </div>
+              </div>
+              {isSameCityDriver && (
+                <div className="mt-3 bg-green-50 border border-green-200 rounded-lg px-3 py-2 flex items-center gap-2 text-green-700 text-sm">
+                  <CheckCircle size={14} />
+                  Local Driver — same city as you ({customerCity})
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Trip Summary */}
+          <Card className="shadow-sm border border-gray-100">
+            <CardContent className="pt-4 pb-4">
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Pickup</span>
+                  <span className="font-medium text-right max-w-[60%]">
+                    {form.pickupAddress}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Drop</span>
+                  <span className="font-medium text-right max-w-[60%]">
+                    {form.dropAddress}
+                  </span>
+                </div>
+                <div className="flex justify-between border-t border-gray-100 pt-2 mt-1">
+                  <span className="font-bold text-gray-900">Total</span>
+                  <span className="font-bold text-green-700">
+                    \u20b9{total.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Download Receipt */}
+          <button
+            type="button"
+            onClick={() => {
+              const insuranceAmount = form.insurance ? 99 : 0;
+              const baseFare = total - insuranceAmount;
+              const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><title>Receipt - DriveEase #${bookingId}</title><style>body{font-family:Arial,sans-serif;padding:32px;color:#1a1a1a}.header{background:#14532d;color:white;padding:24px;border-radius:8px;margin-bottom:24px}.logo{font-size:24px;font-weight:900}.row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:14px}.label{color:#6b7280}.value{font-weight:600}.total-row{border-top:2px solid #14532d;padding-top:12px;font-size:16px;font-weight:700;display:flex;justify-content:space-between}.footer{text-align:center;margin-top:32px;color:#6b7280;font-size:12px;border-top:1px solid #e5e7eb;padding-top:16px}</style></head><body><div class="header"><div class="logo">DriveEase</div><div style="font-size:13px;opacity:0.8;margin-top:4px">Personal Driver Network — Booking Receipt</div><div style="font-size:17px;font-weight:700;margin-top:6px">Booking ID: #${bookingId}</div></div><div class="row"><span class="label">Customer</span><span class="value">${form.customerName}</span></div><div class="row"><span class="label">Phone</span><span class="value">${form.customerPhone}</span></div><div class="row"><span class="label">Driver</span><span class="value">${driver.name}</span></div><div class="row"><span class="label">Driver Phone</span><span class="value">${maskPhone(driverPhone)}</span></div>${driverVehicle ? `<div class="row"><span class="label">Vehicle</span><span class="value">${driverVehicle}</span></div>` : ""}<div class="row"><span class="label">City</span><span class="value">${driver.city}</span></div><div class="row"><span class="label">Pickup</span><span class="value">${form.pickupAddress}</span></div><div class="row"><span class="label">Drop</span><span class="value">${form.dropAddress}</span></div><div class="row"><span class="label">Start Date</span><span class="value">${form.startDate}</span></div><div class="row"><span class="label">End Date</span><span class="value">${form.endDate}</span></div><div class="row"><span class="label">Booking Type</span><span class="value">${bookingType}</span></div><div class="row"><span class="label">Base Fare</span><span class="value">₹${baseFare.toLocaleString("en-IN")}</span></div>${insuranceAmount > 0 ? `<div class="row"><span class="label">Insurance</span><span class="value">₹99</span></div>` : ""}<div class="total-row"><span>Total Amount</span><span style="color:#14532d">₹${total.toLocaleString("en-IN")}</span></div><div class="footer"><p>Thank you for choosing DriveEase<br/>For support: +91-7836887228</p></div><script>window.onload=function(){window.print()}<\/script></body></html>`;
+              const blob = new Blob([html], { type: "text/html" });
+              const url = URL.createObjectURL(blob);
+              const w = window.open(url, "_blank");
+              if (w) w.onafterprint = () => URL.revokeObjectURL(url);
+            }}
+            className="w-full flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 text-white font-semibold py-3 rounded-xl transition-colors"
+            data-ocid="booking.primary_button"
+          >
+            \ud83d\udcf2 Download Receipt / Invoice
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate(`/track/${bookingId}`)}
+            className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition-colors"
+          >
+            <Navigation size={16} />
+            Track My Ride on Map
+          </button>
 
           <Card className="shadow-md">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                💳 Complete Payment
+                \ud83d\udcb3 Complete Payment
               </CardTitle>
               <p className="text-sm text-gray-500">
                 Total Amount:{" "}
                 <span className="font-bold text-green-700">
-                  ₹{total.toLocaleString()}
+                  \u20b9{total.toLocaleString()}
                 </span>
               </p>
             </CardHeader>
             <CardContent className="space-y-6">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                <strong>Important:</strong> Please complete payment within 2
+                hours to confirm your booking.
+              </div>
               <div className="text-center">
                 <p className="font-semibold text-gray-800 mb-3">
-                  📱 Scan &amp; Pay via PhonePe / UPI
+                  \ud83d\udcf1 Scan &amp; Pay via PhonePe / UPI
                 </p>
                 <img
                   src="/assets/uploads/WhatsApp-Image-2026-03-09-at-5.36.30-PM-1.jpeg"
@@ -543,11 +747,7 @@ export default function BookingPage() {
                   className="mx-auto rounded-xl border border-gray-200 shadow-sm"
                   style={{ maxWidth: "220px" }}
                 />
-                <p className="text-xs text-gray-500 mt-2">
-                  Scan with any UPI app to pay instantly
-                </p>
               </div>
-
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
                   <span className="w-full border-t border-gray-200" />
@@ -558,10 +758,9 @@ export default function BookingPage() {
                   </span>
                 </div>
               </div>
-
               <div className="bg-gray-50 rounded-xl p-4 space-y-3">
                 <p className="font-semibold text-gray-800 text-sm">
-                  🏦 Axis Bank Details
+                  \ud83c\udfe6 Axis Bank Details
                 </p>
                 {[
                   {
@@ -601,14 +800,13 @@ export default function BookingPage() {
                   </div>
                 ))}
               </div>
-
               <a
                 href={`https://wa.me/917836887228?text=I+have+completed+payment+for+booking+%23${bookingId}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block w-full text-center bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-lg transition-colors"
               >
-                ✅ Confirm Payment via WhatsApp
+                \u2705 Confirm Payment via WhatsApp
               </a>
             </CardContent>
           </Card>
@@ -640,14 +838,20 @@ export default function BookingPage() {
             to="/drivers"
             className="text-green-600 hover:underline text-sm"
           >
-            ← Back to Drivers
+            \u2190 Back to Drivers
           </Link>
           <h1 className="text-2xl font-bold text-gray-900 mt-2">
             Book {driver.name}
           </h1>
           <p className="text-gray-500 text-sm">
-            {driver.city}, {driver.state} · ₹{driver.pricePerDay}/day
+            {driver.city}, {driver.state} \u00b7 \u20b9{driver.pricePerDay}/day
           </p>
+          {isSameCityDriver && (
+            <div className="inline-flex items-center gap-1.5 mt-2 bg-green-50 border border-green-200 text-green-700 rounded-full px-3 py-1 text-sm">
+              <CheckCircle size={12} />
+              Local Driver — same city as you ({customerCity})
+            </div>
+          )}
         </div>
 
         {/* Booking Type Selector */}
@@ -772,18 +976,21 @@ export default function BookingPage() {
                 </div>
               )}
               <div>
-                <Label htmlFor="pickup">Address *</Label>
+                <Label htmlFor="pickup">Type Address Manually *</Label>
                 <Input
                   id="pickup"
                   value={form.pickupAddress}
                   onChange={(e) =>
                     setForm({ ...form, pickupAddress: e.target.value })
                   }
-                  placeholder="Enter or pin on map"
+                  placeholder="Enter pickup address or pin on map below"
                   className="mt-1"
                   data-ocid="booking.input"
                 />
               </div>
+              <p className="text-xs text-gray-400">
+                Or click on the map to set pickup location:
+              </p>
               <MapPicker
                 label="Pickup Location"
                 value={form.pickupAddress}
@@ -792,10 +999,9 @@ export default function BookingPage() {
                 onChange={(addr, lat, lng) => {
                   setPickupLat(lat);
                   setPickupLng(lng);
-                  setForm((f) => ({
-                    ...f,
-                    pickupAddress: addr || f.pickupAddress,
-                  }));
+                  if (addr) {
+                    setForm((f) => ({ ...f, pickupAddress: addr }));
+                  }
                 }}
               />
               <div className="flex items-center gap-2 mt-2">
@@ -821,18 +1027,21 @@ export default function BookingPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div>
-                <Label htmlFor="drop">Address *</Label>
+                <Label htmlFor="drop">Type Address Manually *</Label>
                 <Input
                   id="drop"
                   value={form.dropAddress}
                   onChange={(e) =>
                     setForm({ ...form, dropAddress: e.target.value })
                   }
-                  placeholder="Enter or pin on map"
+                  placeholder="Enter drop address or pin on map below"
                   className="mt-1"
                   data-ocid="booking.input"
                 />
               </div>
+              <p className="text-xs text-gray-400">
+                Or click on the map to set drop location:
+              </p>
               <MapPicker
                 label="Drop Location"
                 value={form.dropAddress}
@@ -841,10 +1050,9 @@ export default function BookingPage() {
                 onChange={(addr, lat, lng) => {
                   setDropLat(lat);
                   setDropLng(lng);
-                  setForm((f) => ({
-                    ...f,
-                    dropAddress: addr || f.dropAddress,
-                  }));
+                  if (addr) {
+                    setForm((f) => ({ ...f, dropAddress: addr }));
+                  }
                 }}
               />
             </CardContent>
@@ -875,22 +1083,24 @@ export default function BookingPage() {
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Base + per-km</span>
                       <span className="font-medium">
-                        ₹{fareEstimate.base} + ₹{fareEstimate.perKm}
+                        \u20b9{fareEstimate.base} + \u20b9{fareEstimate.perKm}
                       </span>
                     </div>
                   )}
                   {fareEstimate.surcharge > 0 && (
                     <div className="flex justify-between text-sm">
-                      <span className="text-amber-700">🌙 Night surcharge</span>
+                      <span className="text-amber-700">
+                        \ud83c\udf19 Night surcharge
+                      </span>
                       <span className="font-medium text-amber-700">
-                        +₹{fareEstimate.surcharge}
+                        +\u20b9{fareEstimate.surcharge}
                       </span>
                     </div>
                   )}
                   <div className="flex justify-between font-bold text-base border-t border-green-200 pt-2 mt-1">
                     <span className="text-green-800">Estimated Fare</span>
                     <span className="text-green-700 text-lg">
-                      ₹{fareEstimate.total}
+                      \u20b9{fareEstimate.total}
                     </span>
                   </div>
                   <p className="text-xs text-gray-400 mt-1">
@@ -962,7 +1172,7 @@ export default function BookingPage() {
                     className="cursor-pointer font-medium"
                   >
                     <Shield size={14} className="inline text-green-600 mr-1" />
-                    Add Ride Insurance — ₹99
+                    Add Ride Insurance \u2014 \u20b999
                   </Label>
                   <p className="text-sm text-gray-500 mt-0.5">
                     Covers accidents, cancellations, and medical emergencies
@@ -979,26 +1189,27 @@ export default function BookingPage() {
               <CardContent className="pt-4">
                 <div className="flex justify-between text-sm text-gray-600 mb-1">
                   <span className="font-medium text-green-800">
-                    {BOOKING_TYPES.find((t) => t.id === bookingType)?.label} ·{" "}
+                    {BOOKING_TYPES.find((t) => t.id === bookingType)?.label}{" "}
+                    \u00b7{" "}
                     {BOOKING_TYPES.find((t) => t.id === bookingType)?.rate}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm text-gray-600 mb-1">
                   <span>
-                    ₹{effectivePrice}/day × {days} days
+                    \u20b9{effectivePrice}/day \u00d7 {days} days
                   </span>
-                  <span>₹{days * effectivePrice}</span>
+                  <span>\u20b9{days * effectivePrice}</span>
                 </div>
                 {form.insurance && (
                   <div className="flex justify-between text-sm text-gray-600 mb-1">
                     <span>Insurance</span>
-                    <span>₹99</span>
+                    <span>\u20b999</span>
                   </div>
                 )}
                 <div className="flex justify-between font-bold text-gray-900 border-t border-green-200 pt-2 mt-2">
                   <span>Total</span>
                   <span className="text-green-700">
-                    ₹{total.toLocaleString()}
+                    \u20b9{total.toLocaleString()}
                   </span>
                 </div>
               </CardContent>
@@ -1016,8 +1227,8 @@ export default function BookingPage() {
           )}
 
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-            🚨 <strong>SOS Reminder:</strong> Save emergency numbers —
-            Ambulance: 108, Police: 100, Fire: 101
+            \ud83d\udea8 <strong>SOS Reminder:</strong> Save emergency numbers
+            \u2014 Ambulance: 108, Police: 100, Fire: 101
           </div>
 
           <Button
@@ -1028,7 +1239,7 @@ export default function BookingPage() {
           >
             {loading
               ? "Processing..."
-              : `Confirm Booking — ₹${total.toLocaleString()}`}
+              : `Confirm Booking \u2014 \u20b9${total.toLocaleString()}`}
           </Button>
         </form>
       </div>

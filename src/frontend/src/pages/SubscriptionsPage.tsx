@@ -1,5 +1,5 @@
 import { CheckCircle, Clock, Shield, Star } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -9,6 +9,7 @@ import {
 } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import { Textarea } from "../components/ui/textarea";
 import { useActor } from "../hooks/useActor";
 import { apiSaveEnquiry } from "../utils/backendApi";
 import { saveEnquiry } from "../utils/localStore";
@@ -72,8 +73,20 @@ const plans = [
   },
 ];
 
+function getCustomerData(): { name: string; phone: string } {
+  try {
+    const s = localStorage.getItem("otp_customer");
+    if (!s) return { name: "", phone: "" };
+    const c = JSON.parse(s);
+    return { name: c?.name || "", phone: c?.phone || "" };
+  } catch {
+    return { name: "", phone: "" };
+  }
+}
+
 export default function SubscriptionsPage() {
   const { actor } = useActor();
+  const formRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState("hourly");
   const [form, setForm] = useState({
     name: "",
@@ -86,6 +99,26 @@ export default function SubscriptionsPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    // Pre-fill customer data if logged in
+    const customerData = getCustomerData();
+    if (customerData.name || customerData.phone) {
+      setForm((f) => ({
+        ...f,
+        name: customerData.name || f.name,
+        phone: customerData.phone || f.phone,
+      }));
+    }
+  }, []);
+
+  const handleSelectPlan = (planId: string) => {
+    setSelected(planId);
+    // Smooth scroll to inquiry form
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  };
 
   const bg = "#0a0f0d";
   const inputCls =
@@ -153,9 +186,16 @@ export default function SubscriptionsPage() {
             Enquiry Submitted!
           </h2>
           <p className="text-[#86efac]">
-            We'll contact you within 24 hours to discuss the best plan for your
+            We’ll contact you within 24 hours to discuss the best plan for your
             family.
           </p>
+          <button
+            type="button"
+            onClick={() => setSuccess(false)}
+            className="mt-6 text-[#22c55e] hover:underline text-sm"
+          >
+            ← Back to Plans
+          </button>
         </div>
       </div>
     );
@@ -181,9 +221,11 @@ export default function SubscriptionsPage() {
           {plans.map((plan) => (
             <div
               key={plan.id}
-              onClick={() => setSelected(plan.id)}
-              onKeyDown={(e) => e.key === "Enter" && setSelected(plan.id)}
-              className={`relative cursor-pointer rounded-2xl border-2 transition-all ${selected === plan.id ? "border-[#22c55e] shadow-[0_0_30px_rgba(34,197,94,0.15)] scale-[1.02]" : "border-[#1a2e1a] hover:border-[#22c55e]/50"} bg-[#111a14] overflow-hidden`}
+              className={`relative rounded-2xl border-2 transition-all ${
+                selected === plan.id
+                  ? "border-[#22c55e] shadow-[0_0_30px_rgba(34,197,94,0.15)] scale-[1.02]"
+                  : "border-[#1a2e1a] hover:border-[#22c55e]/50"
+              } bg-[#111a14] overflow-hidden`}
               data-ocid="subscriptions.card"
             >
               {plan.featured && (
@@ -215,7 +257,7 @@ export default function SubscriptionsPage() {
                   <Clock size={12} />
                   {plan.coverage}
                 </p>
-                <ul className="space-y-2 mb-4">
+                <ul className="space-y-2 mb-5">
                   {plan.features.map((f) => (
                     <li
                       key={f}
@@ -230,7 +272,7 @@ export default function SubscriptionsPage() {
                   ))}
                 </ul>
                 {plan.seniorAddons.length > 0 && (
-                  <div className="border-t border-[#1a2e1a] pt-3 mt-3">
+                  <div className="border-t border-[#1a2e1a] pt-3 mt-3 mb-4">
                     <p className="text-[#14b8a6] text-xs font-semibold mb-2 flex items-center gap-1">
                       <Shield size={12} />
                       Senior Care Add-ons
@@ -249,119 +291,148 @@ export default function SubscriptionsPage() {
                     ))}
                   </div>
                 )}
+                {/* Select Plan Button */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectPlan(plan.id)}
+                  className={`w-full py-2.5 rounded-xl font-semibold text-sm transition-all ${
+                    selected === plan.id
+                      ? "bg-[#22c55e] text-black hover:bg-[#16a34a]"
+                      : "bg-[#1a2e1a] text-[#22c55e] border border-[#22c55e]/40 hover:bg-[#22c55e]/10"
+                  }`}
+                  data-ocid="subscriptions.primary_button"
+                >
+                  {selected === plan.id ? "✓ Selected" : "Select Plan"}
+                </button>
               </div>
             </div>
           ))}
         </div>
 
-        <Card className="max-w-xl mx-auto bg-[#111a14] border-[#1a2e1a] rounded-2xl">
-          <CardHeader>
-            <CardTitle className="text-[#22c55e]">Request a Callback</CardTitle>
-            <p className="text-sm text-[#86efac]">
-              Selected:{" "}
-              <strong className="text-white">
-                {plans.find((p) => p.id === selected)?.name}
-              </strong>
-            </p>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleEnquiry} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className={labelCls}>Full Name *</Label>
-                  <Input
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    placeholder="Your name"
-                    className={`mt-1 ${inputCls}`}
-                    data-ocid="subscriptions.input"
-                  />
+        {/* Inquiry Form */}
+        <div ref={formRef}>
+          <Card className="max-w-xl mx-auto bg-[#111a14] border-[#1a2e1a] rounded-2xl">
+            <CardHeader>
+              <CardTitle className="text-[#22c55e]">
+                Request a Callback
+              </CardTitle>
+              <p className="text-sm text-[#86efac]">
+                Selected:{" "}
+                <strong className="text-white">
+                  {plans.find((p) => p.id === selected)?.name}
+                </strong>
+              </p>
+              <p className="text-xs text-[#86efac]/70 mt-1">
+                Our team will call you within 24 hours to complete your
+                enrollment.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleEnquiry} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className={labelCls}>Full Name *</Label>
+                    <Input
+                      value={form.name}
+                      onChange={(e) =>
+                        setForm({ ...form, name: e.target.value })
+                      }
+                      placeholder="Your name"
+                      className={`mt-1 ${inputCls}`}
+                      data-ocid="subscriptions.input"
+                    />
+                  </div>
+                  <div>
+                    <Label className={labelCls}>Phone *</Label>
+                    <Input
+                      value={form.phone}
+                      onChange={(e) =>
+                        setForm({ ...form, phone: e.target.value })
+                      }
+                      placeholder="10-digit mobile"
+                      maxLength={10}
+                      className={`mt-1 ${inputCls}`}
+                      data-ocid="subscriptions.input"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className={labelCls}>Email</Label>
+                    <Input
+                      type="email"
+                      value={form.email}
+                      onChange={(e) =>
+                        setForm({ ...form, email: e.target.value })
+                      }
+                      placeholder="your@email.com"
+                      className={`mt-1 ${inputCls}`}
+                      data-ocid="subscriptions.input"
+                    />
+                  </div>
+                  <div>
+                    <Label className={labelCls}>City *</Label>
+                    <Input
+                      value={form.city}
+                      onChange={(e) =>
+                        setForm({ ...form, city: e.target.value })
+                      }
+                      placeholder="Your city"
+                      className={`mt-1 ${inputCls}`}
+                      data-ocid="subscriptions.input"
+                    />
+                  </div>
                 </div>
                 <div>
-                  <Label className={labelCls}>Phone *</Label>
+                  <Label className={labelCls}>Family Members</Label>
                   <Input
-                    value={form.phone}
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={form.members}
                     onChange={(e) =>
-                      setForm({ ...form, phone: e.target.value })
+                      setForm({ ...form, members: e.target.value })
                     }
-                    placeholder="10-digit mobile"
-                    maxLength={10}
                     className={`mt-1 ${inputCls}`}
                     data-ocid="subscriptions.input"
                   />
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className={labelCls}>Email</Label>
-                  <Input
-                    type="email"
-                    value={form.email}
+                  <Label className={labelCls}>Requirements / Message</Label>
+                  <Textarea
+                    value={form.message}
                     onChange={(e) =>
-                      setForm({ ...form, email: e.target.value })
+                      setForm({ ...form, message: e.target.value })
                     }
-                    placeholder="your@email.com"
-                    className={`mt-1 ${inputCls}`}
-                    data-ocid="subscriptions.input"
+                    placeholder="Tell us what you need — daily commute, senior care, outstation, etc."
+                    rows={3}
+                    className={`mt-1 ${inputCls} resize-none`}
+                    data-ocid="subscriptions.textarea"
                   />
                 </div>
-                <div>
-                  <Label className={labelCls}>City *</Label>
-                  <Input
-                    value={form.city}
-                    onChange={(e) => setForm({ ...form, city: e.target.value })}
-                    placeholder="Your city"
-                    className={`mt-1 ${inputCls}`}
-                    data-ocid="subscriptions.input"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label className={labelCls}>Family Members</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  max="20"
-                  value={form.members}
-                  onChange={(e) =>
-                    setForm({ ...form, members: e.target.value })
-                  }
-                  className={`mt-1 ${inputCls}`}
-                  data-ocid="subscriptions.input"
-                />
-              </div>
-              <div>
-                <Label className={labelCls}>Message (optional)</Label>
-                <textarea
-                  value={form.message}
-                  onChange={(e) =>
-                    setForm({ ...form, message: e.target.value })
-                  }
-                  placeholder="Any special requirements..."
-                  rows={3}
-                  className="mt-1 w-full border rounded-xl px-3 py-2 text-sm resize-none bg-[#111a14] border-[#1a2e1a] text-[#f0fdf4] placeholder:text-[#86efac]/40"
-                  data-ocid="subscriptions.textarea"
-                />
-              </div>
-              {error && (
-                <p
-                  className="text-red-400 text-sm"
-                  data-ocid="subscriptions.error_state"
+                {error && (
+                  <p
+                    className="text-red-400 text-sm"
+                    data-ocid="subscriptions.error_state"
+                  >
+                    {error}
+                  </p>
+                )}
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-[#22c55e] hover:bg-[#16a34a] text-black font-semibold"
+                  data-ocid="subscriptions.submit_button"
                 >
-                  {error}
+                  {loading ? "Submitting..." : "Submit Inquiry"}
+                </Button>
+                <p className="text-xs text-[#86efac]/60 text-center">
+                  No account required. We’ll contact you to finalize your plan.
                 </p>
-              )}
-              <Button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-[#22c55e] hover:bg-[#16a34a] text-black font-semibold"
-                data-ocid="subscriptions.submit_button"
-              >
-                {loading ? "Submitting..." : "Request Callback"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

@@ -345,46 +345,78 @@ export default function AdminDashboard() {
   >(null);
 
   const loadAll = useCallback(async (showSpinner = false) => {
-    if (showSpinner) setIsRefreshing(true);
+    if (showSpinner) {
+      setIsRefreshing(true);
+      // Clear state first so fresh data replaces stale entries
+      setBookings([]);
+      setRegistrations([]);
+      setOtpLogins([]);
+      setEnquiries([]);
+    }
     setIsLoading(true);
     try {
       const [bks, regs, logins, enqs] = await Promise.all([
-        apiGetBookings().catch(() => []),
-        apiGetRegistrations().catch(() => []),
-        apiGetOtpLogins().catch(() => []),
-        apiGetEnquiries().catch(() => []),
+        apiGetBookings().catch(() => null),
+        apiGetRegistrations().catch(() => null),
+        apiGetOtpLogins().catch(() => null),
+        apiGetEnquiries().catch(() => null),
       ]);
 
+      const backendHasData = !!(bks || regs || logins || enqs);
+      let hasAnyLocalFallback = false;
+
+      // Bookings: backend is source of truth; local fills in anything not on backend
       const localBks = getBookings();
-      const mergedBks = [...bks];
+      const mergedBks = bks ? [...bks] : [];
       for (const lb of localBks) {
-        if (!mergedBks.some((b) => b.id === lb.id)) mergedBks.push(lb as any);
+        if (!mergedBks.some((b) => b.id === lb.id)) {
+          mergedBks.push(lb as any);
+          if (bks) hasAnyLocalFallback = true;
+        }
       }
       setBookings(mergedBks as any);
 
+      // Registrations: backend takes priority by phone
       const localRegs = getRegistrations();
-      // Merge by phone to avoid duplicates (backend uses sequential IDs, localStorage uses Date.now())
-      const mergedRegs = [...regs];
+      const mergedRegs = regs ? [...regs] : [];
       for (const lr of localRegs) {
-        if (!mergedRegs.some((r) => r.phone === lr.phone))
+        if (!mergedRegs.some((r) => r.phone === lr.phone)) {
           mergedRegs.push(lr as any);
+          if (regs) hasAnyLocalFallback = true;
+        }
       }
       setRegistrations(mergedRegs as any);
 
+      // Logins
       const localLogins = getOtpLogins();
-      const mergedLogins = [...logins];
+      const mergedLogins = logins ? [...logins] : [];
       for (const ll of localLogins) {
-        if (!mergedLogins.some((l) => l.id === ll.id))
+        if (!mergedLogins.some((l) => l.id === ll.id)) {
           mergedLogins.push(ll as any);
+          if (logins) hasAnyLocalFallback = true;
+        }
       }
       setOtpLogins(mergedLogins);
 
+      // Enquiries
       const localEnqs = getEnquiries();
-      const mergedEnqs = [...enqs];
+      const mergedEnqs = enqs ? [...enqs] : [];
       for (const le of localEnqs) {
-        if (!mergedEnqs.some((e) => e.id === le.id)) mergedEnqs.push(le as any);
+        if (!mergedEnqs.some((e) => e.id === le.id)) {
+          mergedEnqs.push(le as any);
+          if (enqs) hasAnyLocalFallback = true;
+        }
       }
       setEnquiries(mergedEnqs as any);
+
+      // Update sync source indicator
+      if (backendHasData && !hasAnyLocalFallback) {
+        setSyncSource("backend");
+      } else if (backendHasData && hasAnyLocalFallback) {
+        setSyncSource("mixed");
+      } else {
+        setSyncSource("local");
+      }
 
       setDrivers([]);
       const statuses = await apiGetAllDriverStatuses().catch(() => []);
@@ -410,6 +442,9 @@ export default function AdminDashboard() {
     enquiries: 0,
   });
   const [syncToast, setSyncToast] = useState("");
+  const [syncSource, setSyncSource] = useState<
+    "backend" | "local" | "mixed" | ""
+  >("");
 
   const syncNow = useCallback(async () => {
     await loadAll(true);
@@ -839,6 +874,18 @@ export default function AdminDashboard() {
                 data-ocid="admin.success_state"
               >
                 {syncToast}
+              </span>
+            )}
+            {!syncToast && syncSource && (
+              <span
+                className={`text-xs px-2 py-1 rounded-lg ${syncSource === "backend" ? "text-green-700 bg-green-50" : syncSource === "mixed" ? "text-amber-700 bg-amber-50" : "text-gray-500 bg-gray-100"}`}
+                data-ocid="admin.loading_state"
+              >
+                {syncSource === "backend"
+                  ? "✓ Live from backend"
+                  : syncSource === "mixed"
+                    ? "⚡ Backend + local cache"
+                    : "📦 Local cache only"}
               </span>
             )}
             <button
