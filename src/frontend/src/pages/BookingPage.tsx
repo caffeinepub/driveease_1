@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import MapPicker from "../components/MapPicker";
+import StatesCitiesSelect from "../components/StatesCitiesSelect";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -33,6 +34,7 @@ import { seedDrivers } from "../data/drivers";
 import { useActor } from "../hooks/useActor";
 import { Link, useNavigate, usePath } from "../router";
 import { apiGetRegistrations, apiSaveBooking } from "../utils/backendApi";
+import { formatIST } from "../utils/istFormat";
 import { saveBooking } from "../utils/localStore";
 
 type BookingType = "hourly" | "daily" | "outstation";
@@ -266,6 +268,8 @@ export default function BookingPage() {
   const [pickupLng, setPickupLng] = useState<number | null>(null);
   const [dropLat, setDropLat] = useState<number | null>(null);
   const [dropLng, setDropLng] = useState<number | null>(null);
+  const [detectingPickup, setDetectingPickup] = useState(false);
+  const [bookingIST] = useState(() => formatIST());
   const [savedAddresses, setSavedAddresses] = useState<
     Array<{ addressLabel: string; address: string }>
   >([]);
@@ -586,6 +590,9 @@ export default function BookingPage() {
               </p>
               <p className="text-gray-500 text-sm mb-2">
                 Driver <strong>{driver.name}</strong> will contact you shortly.
+              </p>
+              <p className="text-xs text-gray-400 mb-2">
+                🕒 Booked at: <strong>{bookingIST}</strong>
               </p>
               <div className="inline-flex items-center gap-2 bg-green-100 text-green-700 rounded-full px-4 py-1.5 text-sm font-semibold mb-4">
                 {bookingType === "hourly" ? (
@@ -976,7 +983,42 @@ export default function BookingPage() {
                 </div>
               )}
               <div>
-                <Label htmlFor="pickup">Type Address Manually *</Label>
+                <div className="flex items-center justify-between mb-1">
+                  <Label htmlFor="pickup">Type Address Manually *</Label>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!navigator.geolocation) return;
+                      setDetectingPickup(true);
+                      navigator.geolocation.getCurrentPosition(
+                        async (pos) => {
+                          try {
+                            const res = await fetch(
+                              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`,
+                            );
+                            const data = await res.json();
+                            const addr = data.display_name || "";
+                            if (addr) {
+                              setForm((f) => ({ ...f, pickupAddress: addr }));
+                              setPickupLat(pos.coords.latitude);
+                              setPickupLng(pos.coords.longitude);
+                            }
+                          } catch {
+                            /* ignore */
+                          } finally {
+                            setDetectingPickup(false);
+                          }
+                        },
+                        () => setDetectingPickup(false),
+                      );
+                    }}
+                    disabled={detectingPickup}
+                    className="text-xs text-green-600 hover:text-green-700 flex items-center gap-1 underline"
+                    data-ocid="booking.toggle"
+                  >
+                    {detectingPickup ? "Detecting..." : "📍 Use My Location"}
+                  </button>
+                </div>
                 <Input
                   id="pickup"
                   value={form.pickupAddress}

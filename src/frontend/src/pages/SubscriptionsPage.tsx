@@ -1,4 +1,4 @@
-import { CheckCircle, Clock, Shield, Star } from "lucide-react";
+import { CheckCircle, Clock, Shield, Star, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "../components/ui/button";
 import {
@@ -7,6 +7,12 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Textarea } from "../components/ui/textarea";
@@ -99,6 +105,23 @@ export default function SubscriptionsPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalSuccess, setModalSuccess] = useState(false);
+
+  useEffect(() => {
+    // Auto-open modal from URL param ?plan=
+    const hash = window.location.hash; // e.g. "#/subscriptions?plan=hourly"
+    const queryPart = hash.includes("?") ? hash.split("?")[1] : "";
+    const params = new URLSearchParams(queryPart);
+    const planParam = params.get("plan");
+    if (planParam) {
+      const found = plans.find((p) => p.id === planParam);
+      if (found) {
+        setSelected(planParam);
+        setModalOpen(true);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     // Pre-fill customer data if logged in
@@ -114,10 +137,57 @@ export default function SubscriptionsPage() {
 
   const handleSelectPlan = (planId: string) => {
     setSelected(planId);
-    // Smooth scroll to inquiry form
-    setTimeout(() => {
-      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 50);
+    setModalSuccess(false);
+    setModalOpen(true);
+  };
+
+  const handleModalEnquiry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name || !form.phone) {
+      setError("Please fill your name and phone number.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      if (actor)
+        await actor.submitSubscriptionEnquiry(
+          form.name,
+          form.phone,
+          form.email,
+          selected,
+          BigInt(Number(form.members) || 1),
+          form.city,
+          form.message,
+        );
+    } catch {
+      /* continue */
+    } finally {
+      setLoading(false);
+      saveEnquiry({
+        id: Date.now(),
+        name: form.name,
+        phone: form.phone,
+        email: form.email,
+        planType: selected,
+        city: form.city,
+        familyMembers: Number(form.members) || 1,
+        message: form.message,
+        submittedAt: new Date().toISOString(),
+        status: "new",
+      });
+      apiSaveEnquiry({
+        name: form.name,
+        phone: form.phone,
+        email: form.email,
+        planType: selected,
+        city: form.city,
+        familyMembers: Number(form.members) || 1,
+        message: form.message,
+        submittedAt: new Date().toISOString(),
+      }).catch(() => {});
+      setModalSuccess(true);
+    }
   };
 
   const bg = "#0a0f0d";
@@ -434,6 +504,111 @@ export default function SubscriptionsPage() {
           </Card>
         </div>
       </div>
+
+      {/* Enquiry Modal */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent
+          className="bg-[#111a14] border-[#1a2e1a] text-white max-w-md"
+          data-ocid="subscriptions.dialog"
+        >
+          <DialogHeader>
+            <DialogTitle className="text-[#22c55e] text-lg">
+              {modalSuccess
+                ? "🎉 Enquiry Submitted!"
+                : `Get Started — ${plans.find((p) => p.id === selected)?.name || ""}`}
+            </DialogTitle>
+          </DialogHeader>
+          {modalSuccess ? (
+            <div className="text-center py-6 space-y-3">
+              <CheckCircle size={48} className="text-green-400 mx-auto" />
+              <p className="text-[#86efac]">
+                We received your enquiry! Our team will call you within 24
+                hours.
+              </p>
+              <Button
+                onClick={() => {
+                  setModalOpen(false);
+                  setModalSuccess(false);
+                }}
+                className="bg-[#22c55e] hover:bg-[#16a34a] text-black font-semibold"
+                data-ocid="subscriptions.close_button"
+              >
+                Close
+              </Button>
+            </div>
+          ) : (
+            <form onSubmit={handleModalEnquiry} className="space-y-3">
+              <div>
+                <Label className="text-[#86efac] text-sm">Your Name *</Label>
+                <Input
+                  value={form.name}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, name: e.target.value }))
+                  }
+                  placeholder="Full name"
+                  className="mt-1 bg-[#0a0f0d] border-[#1a2e1a] text-white placeholder:text-gray-600"
+                  data-ocid="subscriptions.input"
+                />
+              </div>
+              <div>
+                <Label className="text-[#86efac] text-sm">Phone Number *</Label>
+                <Input
+                  value={form.phone}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, phone: e.target.value }))
+                  }
+                  placeholder="10-digit mobile"
+                  className="mt-1 bg-[#0a0f0d] border-[#1a2e1a] text-white placeholder:text-gray-600"
+                  data-ocid="subscriptions.input"
+                />
+              </div>
+              <div>
+                <Label className="text-[#86efac] text-sm">City</Label>
+                <Input
+                  value={form.city}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, city: e.target.value }))
+                  }
+                  placeholder="Your city"
+                  className="mt-1 bg-[#0a0f0d] border-[#1a2e1a] text-white placeholder:text-gray-600"
+                  data-ocid="subscriptions.input"
+                />
+              </div>
+              <div>
+                <Label className="text-[#86efac] text-sm">
+                  Message (optional)
+                </Label>
+                <Textarea
+                  value={form.message}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, message: e.target.value }))
+                  }
+                  placeholder="Any special requirements..."
+                  rows={2}
+                  className="mt-1 bg-[#0a0f0d] border-[#1a2e1a] text-white placeholder:text-gray-600"
+                  data-ocid="subscriptions.textarea"
+                />
+              </div>
+              {error && (
+                <p
+                  className="text-red-400 text-sm"
+                  data-ocid="subscriptions.error_state"
+                >
+                  {error}
+                </p>
+              )}
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#22c55e] hover:bg-[#16a34a] text-black font-semibold"
+                data-ocid="subscriptions.submit_button"
+              >
+                {loading ? "Submitting..." : "Submit Enquiry"}
+              </Button>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

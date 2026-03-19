@@ -1,40 +1,39 @@
-# DriveEase — Version 27
+# DriveEase - Version 28
 
 ## Current State
-- BookingPage exists with map picker (Leaflet/LocationIQ), supports hourly/daily/outstation booking types, shows booking confirmation with receipt
-- MyBookingsPage shows booking history for logged-in customers
-- LiveDriversPage shows online drivers with city filter, links to /book/:driverId
-- Navbar has Services dropdown with Plans, Insurance, Pay, My History; Driver Nav is NOT in Services dropdown
-- SubscriptionsPage has plan cards but the Subscribe/Select buttons may not properly link/scroll to inquiry form
-- No dedicated CustomerProfilePage exists
-- Admin dashboard has Enquiries tab reading from backend
-- City-based driver matching: BookingPage fetches live registrations but does not strictly filter by matching city between customer and driver
+DriveEase is a full-stack PWA for booking personal drivers across India. It has: OTP customer login, driver registration/approval flow, admin dashboard with CRM features, live drivers page, booking with map, ride tracking, subscription plans, and a white/green themed homepage with professional hero image. Data syncs via ICP backend canister with stable storage.
 
 ## Requested Changes (Diff)
 
 ### Add
-- CustomerProfilePage (`/profile`) — shows customer name, phone, city, total bookings count, and links to booking history
-- "Driver Nav" link under Services dropdown in Navbar (desktop + mobile)
-- "My Profile" link under Services dropdown in Navbar for logged-in customers
-- CustomerInquiryPage or inline inquiry form accessible from navbar/services that saves to backend enquiries (admin can see)
-- Route `/profile` in App.tsx
-- City-based driver filtering in BookingPage and LiveDriversPage: when a logged-in customer has a city set (from OTP login or profile), auto-filter drivers to show only drivers whose city matches the customer's city; still allow customer to change city filter manually
+- **IST Date/Time utility**: A shared `formatIST(ts)` function that converts any timestamp/date to `DD-MM-YYYY hh:mm:ss AM/PM IST` format (Asia/Kolkata, UTC+5:30). Falls back to current IST time if no timestamp given.
+- **All India States/Cities/Pincodes data file**: A comprehensive `indiaData.ts` file with all 28 states + 8 UTs, their cities, and pincode prefixes. Used in dropdowns with searchable/filterable state dropdown and city dropdown.
+- **State + City dropdown with search**: On booking page, live drivers filter, and registration form — replace plain text city fields with a searchable state dropdown (type to filter) that then populates city options for that state.
+- **Driver online session timer**: On the driver login page, show a live timer of how long the driver has been online in the current session (HH:MM:SS format, ticking every second from login time). Store `driverOnlineAt` in localStorage.
+- **Admin commission column**: In the admin Driver Earnings tab, add a visible "Commission" column showing platform commission amount per driver. Only visible in admin portal.
+- **Homepage 3D bold hero buttons**: Replace current hero buttons with massive 3D-styled bold text buttons: "Driver Login" and "Book a Driver" — with CSS 3D text-shadow/transform effects, deep green and dark glow styling, very impactful and cool-looking. The entire homepage hero section gets a premium visual upgrade.
+- **AI route map option**: On the booking confirmation page and driver nav page, add an "AI Route View" button that opens a Leaflet map showing the pickup → drop route with a dashed line path and markers. Label it "AI Route Map" prominently.
+- **Location auto-fetch**: On booking page (pickup address field) and live drivers page (city filter), add a "Use My Location" button that calls `navigator.geolocation.getCurrentPosition` and reverse-geocodes via LocationIQ (or fallback to Nominatim free API: `https://nominatim.openstreetmap.org/reverse`) to auto-fill pickup address and detect city.
+- **Plan enquiry submit fix**: Fix the Services dropdown plan buttons — clicking any plan should open a slide-up enquiry modal with pre-filled plan name, customer name/phone if logged in, a message field, and a Submit button that saves to backend enquiries (visible in admin Enquiries tab).
 
 ### Modify
-- BookingPage: ensure map picker works for pickup AND drop location; after successful booking, prominently show assigned driver details (name, phone masked, vehicle, city) + receipt with booking ID; store booking with driverId and driverName fields
-- MyBookingsPage: ensure it shows full booking details including driver name/vehicle/city and receipt download
-- SubscriptionsPage: fix all Subscribe/Select Plan buttons — they should either scroll to an inquiry form on the page or navigate to `/login` if not logged in, then to a plan inquiry submission form; add a working inquiry form at the bottom of the plans page that saves to backend enquiries with plan name
-- Navbar Services dropdown: add "Driver Nav" link (`/driver-nav`) and "My Profile" link (`/profile`, only for logged-in customers) under Services
-- LiveDriversPage: when customer is logged in with a city, auto-set city filter to customer's city; show city match badge on driver cards
+- **All booking date/time displays**: Everywhere a booking timestamp, login time, or booking request time is shown (AdminDashboard bookings table, DriverLoginPage request cards, MyBookingsPage booking history, LiveDriversPage booking info) — apply `formatIST()` consistently. Format: `19-03-2026 05:42:42 PM IST`.
+- **Driver login timestamp**: When driver goes online, record `driverOnlineAt: new Date().toISOString()` in localStorage. Display login time in IST format in the driver panel.
+- **Admin bookings table**: Add formatted IST time column. Replace any raw date strings.
+- **Booking receipt/invoice**: Show booking time in IST format.
 
 ### Remove
-- Nothing removed
+- Nothing removed.
 
 ## Implementation Plan
-1. Create `src/frontend/src/pages/CustomerProfilePage.tsx` — shows name, phone, city (editable and saved to localStorage), booking count, links to My Bookings
-2. Update `Navbar.tsx` — add "Driver Nav" to servicesLinks array; add "My Profile" for logged-in customers in Services dropdown
-3. Update `App.tsx` — add `/profile` route pointing to CustomerProfilePage
-4. Update `BookingPage.tsx` — after booking success, fetch and display the booked driver's details (name, masked phone, vehicle type, city, experience); ensure city-based auto-filter when customer city is available
-5. Update `LiveDriversPage.tsx` — auto-populate city filter from customer's stored city; show "Matches your city" badge
-6. Update `SubscriptionsPage.tsx` — fix Subscribe buttons to scroll to inquiry form; add working plan inquiry form at bottom that POSTs to backend and shows success
-7. Ensure all pages work responsively on mobile and desktop
+1. Create `src/frontend/src/utils/istFormat.ts` with `formatIST(input?)` function.
+2. Create `src/frontend/src/utils/indiaData.ts` with all states, cities, pincode prefixes.
+3. Create `src/frontend/src/components/StatesCitiesSelect.tsx` — searchable state dropdown + city dropdown component.
+4. Update `HomePage.tsx` — add 3D bold CSS-styled "Driver Login" and "Book a Driver" hero buttons with CSS text-shadow 3D effect. Make the hero section look premium and bold.
+5. Update `BookingPage.tsx` — add location auto-fetch button for pickup, add StatesCitiesSelect for location fields, apply formatIST to booking timestamps, add AI Route Map panel post-booking.
+6. Update `DriverLoginPage.tsx` — record `driverOnlineAt` on going online, show live session timer, apply formatIST to booking request times.
+7. Update `AdminDashboard.tsx` — apply formatIST to all date columns, add Commission column to Driver Earnings tab.
+8. Update `MyBookingsPage.tsx` — apply formatIST to booking date/time fields.
+9. Update `LiveDriversPage.tsx` — add location auto-fetch for city filter.
+10. Update `SubscriptionsPage.tsx` — fix plan Select buttons to open enquiry modal, save to backend.
+11. Update `Navbar.tsx` — ensure Services dropdown plan links open enquiry modal (can use URL hash param to trigger modal on plans page).

@@ -20,7 +20,10 @@ export default function Navbar() {
   ];
 
   const servicesLinks = [
-    { to: "/subscriptions", label: "Plans" },
+    { to: "/subscriptions?plan=hourly", label: "Hourly Plan" },
+    { to: "/subscriptions?plan=daily", label: "Daily Plan" },
+    { to: "/subscriptions?plan=weekend", label: "Weekend Plan" },
+    { to: "/subscriptions", label: "All Plans" },
     { to: "/insurance", label: "Insurance" },
     { to: "/payment", label: "Pay" },
     { to: "/driver-nav", label: "Driver Navigation" },

@@ -27,6 +27,7 @@ import { Textarea } from "../components/ui/textarea";
 import { seedDrivers } from "../data/drivers";
 import { Link } from "../router";
 import { apiGetBookings } from "../utils/backendApi";
+import { formatIST } from "../utils/istFormat";
 
 interface LocalBooking {
   id: number;
@@ -525,9 +526,9 @@ export default function MyBookingsPage() {
                     <div className="mt-3 flex items-center justify-between">
                       <div className="text-xs text-gray-400">
                         <p>
-                          {b.startDate}
+                          {formatIST(b.startDate)}
                           {b.endDate && b.endDate !== b.startDate
-                            ? ` → ${b.endDate}`
+                            ? ` → ${formatIST(b.endDate)}`
                             : ""}
                         </p>
                         {b.days && b.days > 0 && (

@@ -70,12 +70,64 @@ export default function HomePage() {
           from { opacity: 0; transform: translateY(32px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        @keyframes pulseGlow {
+          0%, 100% { box-shadow: 0 8px 0 #78350f, 0 14px 24px rgba(0,0,0,0.5), 0 0 0 0 rgba(253,186,116,0); }
+          50% { box-shadow: 0 8px 0 #78350f, 0 14px 24px rgba(0,0,0,0.5), 0 0 24px 6px rgba(253,186,116,0.35); }
+        }
         .anim-hero-badge { animation: fadeSlideUp 0.6s ease forwards; opacity: 0; animation-delay: 0.1s; }
         .anim-hero-h1 { animation: fadeSlideUp 0.7s ease forwards; opacity: 0; animation-delay: 0.25s; }
         .anim-hero-sub { animation: fadeSlideUp 0.7s ease forwards; opacity: 0; animation-delay: 0.4s; }
         .anim-hero-btns { animation: fadeSlideUp 0.7s ease forwards; opacity: 0; animation-delay: 0.55s; }
         .anim-hero-trust { animation: fadeSlideUp 0.7s ease forwards; opacity: 0; animation-delay: 0.7s; }
         .anim-hero-img { animation: fadeSlideUp 0.9s ease forwards; opacity: 0; animation-delay: 0.3s; }
+        .btn-3d-green {
+          background: #16a34a;
+          color: white;
+          box-shadow: 0 8px 0 #064e3b, 0 12px 20px rgba(0,0,0,0.5);
+          transform: translateY(0);
+          transition: all 0.1s ease;
+          border-radius: 14px;
+          font-size: 1.15rem;
+          font-weight: 800;
+          letter-spacing: 0.04em;
+          padding: 18px 36px;
+          text-decoration: none;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          border: none;
+          cursor: pointer;
+        }
+        .btn-3d-green:hover { transform: translateY(4px); box-shadow: 0 4px 0 #064e3b, 0 6px 12px rgba(0,0,0,0.4); }
+        .btn-3d-green:active { transform: translateY(7px); box-shadow: 0 1px 0 #064e3b, 0 2px 6px rgba(0,0,0,0.3); }
+        .btn-3d-white {
+          background: #ffffff;
+          color: #064e3b;
+          box-shadow: 0 8px 0 #78350f, 0 12px 20px rgba(0,0,0,0.5);
+          transform: translateY(0);
+          transition: all 0.1s ease;
+          animation: pulseGlow 2.5s ease-in-out infinite;
+          border-radius: 14px;
+          font-size: 1.15rem;
+          font-weight: 800;
+          letter-spacing: 0.04em;
+          padding: 18px 36px;
+          text-decoration: none;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          border: none;
+          cursor: pointer;
+        }
+        .btn-3d-white:hover { transform: translateY(4px); box-shadow: 0 4px 0 #78350f, 0 6px 12px rgba(0,0,0,0.4); animation: none; }
+        .btn-3d-white:active { transform: translateY(7px); box-shadow: 0 1px 0 #78350f, 0 2px 6px rgba(0,0,0,0.3); }
+        .text-3d-green {
+          font-size: clamp(2rem, 5vw, 3.5rem);
+          font-weight: 900;
+          letter-spacing: 0.05em;
+          text-shadow: 2px 2px 0px #065f46, 4px 4px 0px #064e3b, 6px 6px 0px #022c22, 0 0 40px rgba(34,197,94,0.3);
+          line-height: 1;
+        }
       `}</style>
 
       {/* Hero */}
@@ -125,26 +177,37 @@ export default function HomePage() {
               Verified drivers across India. Safe, reliable, and affordable
               rides at your fingertips.
             </p>
-            <div className="anim-hero-btns flex flex-col sm:flex-row gap-4 mb-10">
-              <Button
-                asChild
-                size="lg"
-                className="bg-green-600 hover:bg-green-500 text-white font-semibold px-8 shadow-lg shadow-green-900/40 transition-all duration-200 hover:scale-105 hover:shadow-green-700/50"
-                data-ocid="hero.primary_button"
-              >
-                <Link to="/drivers">
-                  Book a Driver Now <ChevronRight className="ml-1" size={18} />
+            <div className="anim-hero-btns mb-10">
+              <div className="mb-5 flex flex-col sm:flex-row gap-4 sm:gap-8 items-center justify-center md:justify-start">
+                <span className="text-3d-green">DRIVER LOGIN</span>
+                <span
+                  className="text-white font-black"
+                  style={{
+                    fontSize: "clamp(1.5rem,4vw,2.8rem)",
+                    textShadow: "2px 2px 0 #000",
+                    letterSpacing: "0.03em",
+                  }}
+                >
+                  ✦
+                </span>
+                <span className="text-3d-green">BOOK DRIVER</span>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Link
+                  to="/driver-login"
+                  className="btn-3d-green"
+                  data-ocid="hero.primary_button"
+                >
+                  🚗 Driver Login
                 </Link>
-              </Button>
-              <Button
-                asChild
-                size="lg"
-                variant="outline"
-                className="border-green-600/50 text-green-400 hover:bg-green-900/30 hover:border-green-500 font-semibold px-8 transition-all duration-200 hover:scale-105"
-                data-ocid="hero.secondary_button"
-              >
-                <Link to="/subscriptions">View Family Plans</Link>
-              </Button>
+                <Link
+                  to="/drivers"
+                  className="btn-3d-white"
+                  data-ocid="hero.secondary_button"
+                >
+                  📍 Book a Driver Now
+                </Link>
+              </div>
             </div>
             <div className="anim-hero-trust flex flex-wrap justify-center md:justify-start gap-3">
               {trustIndicators.map((t) => (

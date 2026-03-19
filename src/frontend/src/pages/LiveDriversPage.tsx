@@ -15,6 +15,7 @@ import { Card, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Link } from "../router";
 import { apiGetOnlineDrivers, apiGetRegistrations } from "../utils/backendApi";
+import { INDIA_STATES } from "../utils/indiaData";
 import { getRegistrations } from "../utils/localStore";
 
 interface LiveDriver {
@@ -109,6 +110,8 @@ export default function LiveDriversPage() {
   const [drivers, setDrivers] = useState<LiveDriver[]>([]);
   const [loading, setLoading] = useState(true);
   const [cityFilter, setCityFilter] = useState("");
+  const [stateFilter, setStateFilter] = useState("");
+  const [detectingLocation, setDetectingLocation] = useState(false);
   const [selected, setSelected] = useState<LiveDriver | null>(null);
   const [lastUpdated, setLastUpdated] = useState(Date.now());
   const [secsAgo, setSecsAgo] = useState(0);
@@ -158,11 +161,42 @@ export default function LiveDriversPage() {
 
   const customerCity = getCustomerCity();
 
-  const filtered = drivers.filter(
-    (d) =>
-      !cityFilter || d.city.toLowerCase().includes(cityFilter.toLowerCase()),
-  );
+  const filtered = drivers.filter((d) => {
+    const matchCity =
+      !cityFilter || d.city.toLowerCase().includes(cityFilter.toLowerCase());
+    const matchState =
+      !stateFilter ||
+      (d.state || "").toLowerCase().includes(stateFilter.toLowerCase());
+    return matchCity && matchState;
+  });
   const bg = "#0a0f0d";
+
+  const detectCity = () => {
+    if (!navigator.geolocation) return;
+    setDetectingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`,
+          );
+          const data = await res.json();
+          const city =
+            data.address?.city ||
+            data.address?.town ||
+            data.address?.village ||
+            data.address?.county ||
+            "";
+          if (city) setCityFilter(city);
+        } catch {
+          /* ignore */
+        } finally {
+          setDetectingLocation(false);
+        }
+      },
+      () => setDetectingLocation(false),
+    );
+  };
 
   return (
     <div className="min-h-screen" style={{ background: bg }}>
@@ -188,41 +222,76 @@ export default function LiveDriversPage() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="flex flex-wrap items-center gap-3 mb-6">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-[#86efac]"
-            />
-            <Input
-              placeholder="Filter by city..."
-              value={cityFilter}
-              onChange={(e) => setCityFilter(e.target.value)}
-              className="pl-9 bg-[#111a14] border-[#1a2e1a] text-[#f0fdf4] placeholder:text-[#86efac]/50"
-              data-ocid="live_drivers.search_input"
-            />
-          </div>
-          {cityFilter && (
+        <div className="space-y-3 mb-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={stateFilter}
+              onChange={(e) => {
+                setStateFilter(e.target.value);
+                setCityFilter("");
+              }}
+              className="flex-1 min-w-[160px] px-3 py-2 bg-[#111a14] border border-[#1a2e1a] text-[#f0fdf4] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              data-ocid="live_drivers.select"
+            >
+              <option value="">All States</option>
+              {INDIA_STATES.map((s) => (
+                <option key={s.name} value={s.name}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+            <div className="relative flex-1 min-w-[160px]">
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#86efac]"
+              />
+              <Input
+                placeholder="Filter by city..."
+                value={cityFilter}
+                onChange={(e) => setCityFilter(e.target.value)}
+                className="pl-9 bg-[#111a14] border-[#1a2e1a] text-[#f0fdf4] placeholder:text-[#86efac]/50"
+                data-ocid="live_drivers.search_input"
+              />
+            </div>
             <button
               type="button"
-              onClick={() => setCityFilter("")}
-              className="text-[#86efac] text-sm hover:text-white underline"
+              onClick={detectCity}
+              disabled={detectingLocation}
+              className="flex items-center gap-1.5 px-3 py-2 bg-[#111a14] border border-[#1a2e1a] text-[#86efac] rounded-lg text-sm hover:border-green-600 transition-colors"
+              data-ocid="live_drivers.toggle"
             >
-              Clear filter
+              {detectingLocation ? (
+                <RefreshCw size={14} className="animate-spin" />
+              ) : (
+                "📍"
+              )}
+              Detect My City
             </button>
-          )}
-          <Button
-            onClick={refresh}
-            className="bg-[#22c55e] hover:bg-[#16a34a] text-black font-semibold gap-2"
-            disabled={loading}
-            data-ocid="live_drivers.primary_button"
-          >
-            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />{" "}
-            Refresh
-          </Button>
+            {cityFilter && (
+              <button
+                type="button"
+                onClick={() => setCityFilter("")}
+                className="text-[#86efac] text-sm hover:text-white underline"
+              >
+                Clear city
+              </button>
+            )}
+            <Button
+              onClick={refresh}
+              className="bg-[#22c55e] hover:bg-[#16a34a] text-black font-semibold gap-2"
+              disabled={loading}
+              data-ocid="live_drivers.primary_button"
+            >
+              <RefreshCw size={16} className={loading ? "animate-spin" : ""} />{" "}
+              Refresh
+            </Button>
+          </div>
           <span className="text-[#86efac] text-sm">
             <Clock size={12} className="inline mr-1" />
             Updated {secsAgo}s ago
+            {stateFilter && (
+              <span className="ml-2 text-green-400">· {stateFilter}</span>
+            )}
           </span>
         </div>
 

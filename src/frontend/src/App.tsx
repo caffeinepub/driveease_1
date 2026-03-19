@@ -22,7 +22,8 @@ import TrackingPage from "./pages/TrackingPage";
 import { RouterProvider, usePath } from "./router";
 
 function AppContent() {
-  const path = usePath();
+  const rawPath = usePath();
+  const path = rawPath.split("?")[0];
   const { actor } = useActor();
 
   useEffect(() => {

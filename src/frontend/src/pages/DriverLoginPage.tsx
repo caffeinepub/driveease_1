@@ -29,6 +29,7 @@ import {
   apiGetRegistrations,
   apiSetDriverOnlineStatus,
 } from "../utils/backendApi";
+import { formatIST } from "../utils/istFormat";
 
 interface DriverSession {
   driverId: number;
@@ -158,6 +159,8 @@ export default function DriverLoginPage() {
   >("idle");
   const [pendingSubmittedAt, setPendingSubmittedAt] = useState("");
   const [isOnline, setIsOnline] = useState(false);
+  const [onlineTimer, setOnlineTimer] = useState("");
+  const [loginTimeIST] = useState(() => formatIST());
   const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([]);
   const [driverBookings, setDriverBookings] = useState<LocalBooking[]>([]);
   const [withdrawMode, setWithdrawMode] = useState<"bank" | "upi">("upi");
@@ -183,6 +186,31 @@ export default function DriverLoginPage() {
     }, 5000);
     return () => clearInterval(interval);
   }, [session]);
+
+  // Online session timer
+  useEffect(() => {
+    if (!isOnline || !session) {
+      setOnlineTimer("");
+      return;
+    }
+    const key = `driveease_driver_online_since_${session.driverId}`;
+    const updateTimer = () => {
+      const since = localStorage.getItem(key);
+      if (!since) return;
+      const elapsed = Math.floor(
+        (Date.now() - new Date(since).getTime()) / 1000,
+      );
+      const h = Math.floor(elapsed / 3600);
+      const m = Math.floor((elapsed % 3600) / 60);
+      const s = elapsed % 60;
+      setOnlineTimer(
+        `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`,
+      );
+    };
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [isOnline, session]);
 
   const sendOtp = async () => {
     if (!phone || phone.length < 10) {
@@ -659,6 +687,9 @@ export default function DriverLoginPage() {
                 <Navigation size={12} />
                 {session.city}
               </div>
+              <div className="text-[#86efac]/60 text-xs">
+                In at: {loginTimeIST}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -673,6 +704,11 @@ export default function DriverLoginPage() {
               />
               {isOnline ? "Online" : "Offline"}
             </button>
+            {isOnline && onlineTimer && (
+              <span className="text-xs text-green-400 font-mono bg-green-900/30 border border-green-800 rounded-full px-2 py-1">
+                ⏱ {onlineTimer}
+              </span>
+            )}
             <button
               type="button"
               onClick={handleLogout}
@@ -737,6 +773,9 @@ export default function DriverLoginPage() {
                 <p className="text-white font-medium">{req.customerName}</p>
                 <p className="text-[#86efac] text-xs mt-1">📍 {req.pickup}</p>
                 <p className="text-[#86efac] text-xs">🏁 {req.drop}</p>
+                <p className="text-[#86efac]/60 text-xs">
+                  🕒 {formatIST(req.timestamp)}
+                </p>
                 <p className="text-green-400 font-semibold mt-1">
                   ₹{req.amount.toLocaleString()}
                 </p>

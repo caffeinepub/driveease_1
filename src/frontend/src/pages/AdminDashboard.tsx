@@ -71,6 +71,7 @@ import {
   apiUpdateRegistrationStatus,
 } from "../utils/backendApi";
 import type { ApiDriverStatus } from "../utils/backendApi";
+import { formatIST } from "../utils/istFormat";
 import {
   getBookings,
   getEnquiries,
@@ -201,13 +202,7 @@ function StatusBadge({ status }: { status: string }) {
 
 function fmt(iso: string) {
   try {
-    return new Date(iso).toLocaleString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    return formatIST(iso);
   } catch {
     return iso;
   }
@@ -916,9 +911,7 @@ export default function AdminDashboard() {
             >
               {dm ? <Sun size={16} /> : <Moon size={16} />}
             </button>
-            <span className={`text-sm ${subtextColor}`}>
-              {new Date().toLocaleTimeString("en-IN")}
-            </span>
+            <span className={`text-sm ${subtextColor}`}>{formatIST()}</span>
           </div>
         </div>
 
