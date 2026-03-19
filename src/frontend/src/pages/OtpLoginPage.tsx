@@ -87,7 +87,7 @@ export default function OtpLoginPage() {
     setStep("otp");
   };
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
+  const handleVerifyOtp = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     if (enteredOtp !== generatedOtp) {
@@ -95,25 +95,21 @@ export default function OtpLoginPage() {
       return;
     }
     setLoading(true);
-    try {
-      if (actor) await actor.recordOtpLogin(phone, name);
-      saveOtpLogin({
-        id: Date.now(),
-        name,
-        phone,
-        loginTime: new Date().toISOString(),
-      });
-      apiSaveOtpLogin(name, phone, new Date().toISOString()).catch(() => {});
-      localStorage.setItem(
-        "otp_customer",
-        JSON.stringify({ name, phone, loggedIn: true }),
-      );
-      navigate("/drivers");
-    } catch {
-      setError("Login failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    // Record login non-blocking — never block the user from logging in
+    if (actor) actor.recordOtpLogin(phone, name).catch(() => {});
+    apiSaveOtpLogin(name, phone, new Date().toISOString()).catch(() => {});
+    saveOtpLogin({
+      id: Date.now(),
+      name,
+      phone,
+      loginTime: new Date().toISOString(),
+    });
+    localStorage.setItem(
+      "otp_customer",
+      JSON.stringify({ name, phone, loggedIn: true }),
+    );
+    setLoading(false);
+    navigate("/drivers");
   };
 
   return (
