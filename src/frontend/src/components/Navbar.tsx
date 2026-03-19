@@ -1,6 +1,7 @@
-import { Bell, ChevronDown, Menu, X } from "lucide-react";
+import { Bell, ChevronDown, Download, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "../router";
+import { useInstallPrompt } from "./PWAInstallBanner";
 import { Button } from "./ui/button";
 
 function getUnreadNotifications(): number {
@@ -18,6 +19,7 @@ export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
   const { pathname } = useLocation();
+  const { canInstall, triggerInstall } = useInstallPrompt();
 
   const stored = localStorage.getItem("otp_customer");
   const customer = stored ? JSON.parse(stored) : null;
@@ -155,6 +157,20 @@ export default function Navbar() {
               Login
             </Link>
           )}
+
+          {/* Install App button — shown when browser supports PWA install */}
+          {canInstall && (
+            <button
+              type="button"
+              onClick={() => triggerInstall()}
+              className="flex items-center gap-1.5 ml-1 px-3 py-2 rounded text-sm font-semibold text-green-300 border border-green-700 hover:bg-green-700 hover:text-white transition-all"
+              data-ocid="navbar.install_app.button"
+            >
+              <Download size={14} />
+              Install App
+            </button>
+          )}
+
           <Button
             asChild
             className="ml-3 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all hover:scale-105"
@@ -229,6 +245,21 @@ export default function Navbar() {
               ? `Hi, ${customer.name.split(" ")[0]}`
               : "Login"}
           </Link>
+          {/* Mobile Install App button */}
+          {canInstall && (
+            <button
+              type="button"
+              onClick={() => {
+                triggerInstall();
+                setOpen(false);
+              }}
+              className="flex items-center gap-2 w-full mt-2 py-2 text-green-300 hover:text-green-400"
+              data-ocid="navbar.mobile.install_app.button"
+            >
+              <Download size={16} />
+              Install DriveEase App
+            </button>
+          )}
           <Link
             to="/drivers"
             onClick={() => setOpen(false)}

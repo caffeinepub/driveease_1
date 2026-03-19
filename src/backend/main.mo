@@ -11,8 +11,6 @@ import AccessControl "authorization/access-control";
 
 actor {
   // ===== LEGACY STABLE VARS (kept for upgrade compatibility) =====
-  // These match the previous backend's stable state exactly.
-  // They are not used by new functions but must be declared to allow upgrade.
 
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
@@ -99,7 +97,7 @@ actor {
     email : Text;
   };
 
-  // Legacy stable variables — declare with old names/types so upgrade works
+  // Legacy non-stable variables
   let bookings = Map.empty<Nat, LegacyBooking>();
   let drivers = Map.empty<Nat, LegacyDriverProfile>();
   let registrationRequests = Map.empty<Nat, LegacyDriverRegistrationRequest>();
@@ -178,7 +176,19 @@ actor {
     lastUpdated : Text;
   };
 
-  // ===== NEW STABLE STATE =====
+  // ===== STABLE STORAGE (persists across upgrades) =====
+
+  stable var stableBookings : [DriveBooking] = [];
+  stable var stableRegistrations : [DriveRegistration] = [];
+  stable var stableOtpLogins : [DriveOtpLogin] = [];
+  stable var stableEnquiries : [DriveEnquiry] = [];
+  stable var stableDriverStatuses : [DriverStatus] = [];
+  stable var stableNextBookingId : Nat = 1;
+  stable var stableNextRegistrationId : Nat = 1;
+  stable var stableNextOtpLoginId : Nat = 1;
+  stable var stableNextEnquiryId : Nat = 1;
+
+  // ===== RUNTIME MAPS (loaded from stable on startup) =====
 
   let driveBookings = Map.empty<Nat, DriveBooking>();
   let driveRegistrations = Map.empty<Nat, DriveRegistration>();
@@ -186,10 +196,36 @@ actor {
   let driveEnquiries = Map.empty<Nat, DriveEnquiry>();
   let driverStatuses = Map.empty<Text, DriverStatus>();
 
-  var nextDriveBookingId = 1;
-  var nextDriveRegistrationId = 1;
-  var nextDriveOtpLoginId = 1;
-  var nextDriveEnquiryId = 1;
+  var nextDriveBookingId = stableNextBookingId;
+  var nextDriveRegistrationId = stableNextRegistrationId;
+  var nextDriveOtpLoginId = stableNextOtpLoginId;
+  var nextDriveEnquiryId = stableNextEnquiryId;
+
+  // Initialize maps from stable arrays
+  do {
+    for (b in stableBookings.vals()) { driveBookings.add(b.id, b) };
+    for (r in stableRegistrations.vals()) { driveRegistrations.add(r.id, r) };
+    for (l in stableOtpLogins.vals()) { driveOtpLogins.add(l.id, l) };
+    for (e in stableEnquiries.vals()) { driveEnquiries.add(e.id, e) };
+    for (d in stableDriverStatuses.vals()) { driverStatuses.add(d.phone, d) };
+  };
+
+  // Save maps back to stable arrays before upgrades
+  system func preupgrade() {
+    stableBookings := driveBookings.values().toArray();
+    stableRegistrations := driveRegistrations.values().toArray();
+    stableOtpLogins := driveOtpLogins.values().toArray();
+    stableEnquiries := driveEnquiries.values().toArray();
+    stableDriverStatuses := driverStatuses.values().toArray();
+    stableNextBookingId := nextDriveBookingId;
+    stableNextRegistrationId := nextDriveRegistrationId;
+    stableNextOtpLoginId := nextDriveOtpLoginId;
+    stableNextEnquiryId := nextDriveEnquiryId;
+  };
+
+  system func postupgrade() {
+    // Maps already initialized in do block above from stable arrays
+  };
 
   // ===== NEW PUBLIC API =====
 
@@ -232,6 +268,8 @@ actor {
     };
     driveBookings.add(id, booking);
     nextDriveBookingId += 1;
+    stableBookings := driveBookings.values().toArray();
+    stableNextBookingId := nextDriveBookingId;
     id;
   };
 
@@ -241,7 +279,10 @@ actor {
 
   public shared func updateBookingStatus(id : Nat, status : Text) : async () {
     switch (driveBookings.get(id)) {
-      case (?b) { driveBookings.add(id, { b with status }) };
+      case (?b) {
+        driveBookings.add(id, { b with status });
+        stableBookings := driveBookings.values().toArray();
+      };
       case (null) {};
     };
   };
@@ -261,6 +302,12 @@ actor {
     langs : Text,
     workAreas : Text,
   ) : async Nat {
+    // Check for duplicate phone - return existing id if already registered
+    for (r in driveRegistrations.values()) {
+      if (Text.equal(r.phone, phone)) {
+        return r.id;
+      };
+    };
     let id = nextDriveRegistrationId;
     let reg : DriveRegistration = {
       id;
@@ -279,6 +326,8 @@ actor {
     };
     driveRegistrations.add(id, reg);
     nextDriveRegistrationId += 1;
+    stableRegistrations := driveRegistrations.values().toArray();
+    stableNextRegistrationId := nextDriveRegistrationId;
     id;
   };
 
@@ -288,7 +337,10 @@ actor {
 
   public shared func updateRegistrationStatus(id : Nat, status : Text) : async () {
     switch (driveRegistrations.get(id)) {
-      case (?r) { driveRegistrations.add(id, { r with status }) };
+      case (?r) {
+        driveRegistrations.add(id, { r with status });
+        stableRegistrations := driveRegistrations.values().toArray();
+      };
       case (null) {};
     };
   };
@@ -300,6 +352,8 @@ actor {
     let login : DriveOtpLogin = { id; name; phone; loginTime };
     driveOtpLogins.add(id, login);
     nextDriveOtpLoginId += 1;
+    stableOtpLogins := driveOtpLogins.values().toArray();
+    stableNextOtpLoginId := nextDriveOtpLoginId;
     id;
   };
 
@@ -334,6 +388,8 @@ actor {
     };
     driveEnquiries.add(id, enquiry);
     nextDriveEnquiryId += 1;
+    stableEnquiries := driveEnquiries.values().toArray();
+    stableNextEnquiryId := nextDriveEnquiryId;
     id;
   };
 
@@ -343,7 +399,10 @@ actor {
 
   public shared func updateEnquiryStatus(id : Nat, status : Text) : async () {
     switch (driveEnquiries.get(id)) {
-      case (?e) { driveEnquiries.add(id, { e with status }) };
+      case (?e) {
+        driveEnquiries.add(id, { e with status });
+        stableEnquiries := driveEnquiries.values().toArray();
+      };
       case (null) {};
     };
   };
@@ -360,6 +419,7 @@ actor {
   ) : async () {
     let ds : DriverStatus = { phone; name; city; driverId; status; lastUpdated };
     driverStatuses.add(phone, ds);
+    stableDriverStatuses := driverStatuses.values().toArray();
   };
 
   public query func getDriverOnlineStatuses() : async [DriverStatus] {

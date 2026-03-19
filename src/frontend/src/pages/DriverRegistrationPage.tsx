@@ -207,66 +207,67 @@ export default function DriverRegistrationPage() {
       setError("Please upload your payment screenshot.");
       return;
     }
-    if (!actor) {
-      setError("Not connected. Please try again.");
-      return;
-    }
     setLoading(true);
     const now = new Date().toISOString();
-    try {
-      const [a, b, c, d] = await Promise.all([
-        fileToBlob(docs.aadhar),
-        fileToBlob(docs.pan),
-        fileToBlob(docs.license),
-        fileToBlob(docs.selfie),
-      ]);
-      await actor.registerDriver(
-        form.name,
-        form.phone,
-        form.email,
-        form.city,
-        form.state,
-        a,
-        b,
-        c,
-        d,
-      );
-    } catch {
-      /* continue */
-    } finally {
-      setLoading(false);
-      saveRegistration({
-        id: Date.now(),
-        name: form.name,
-        phone: form.phone,
-        email: form.email,
-        city: form.city,
-        state: form.state,
-        status: "pending",
-        submittedAt: now,
-        vehicleType: form.vehicleType,
-        licenseNumber: form.licenseNumber,
-        experience: form.experience,
-        languages: form.languages,
-        workAreas: form.workAreas,
-        paymentScreenshotBase64,
-      } as any);
-      apiSaveRegistration({
-        name: form.name,
-        phone: form.phone,
-        email: form.email,
-        city: form.city,
-        state: form.state,
-        submittedAt: now,
-        vehicleType: form.vehicleType,
-        licenseNumber: form.licenseNumber,
-        experience: form.experience,
-        languages: form.languages,
-        workAreas: form.workAreas,
-      }).catch(() => {});
-      setSubmittedAt(now);
-      setSubmitted(true);
+    const regData = {
+      name: form.name,
+      phone: form.phone,
+      email: form.email,
+      city: form.city,
+      state: form.state,
+      submittedAt: now,
+      vehicleType: form.vehicleType,
+      licenseNumber: form.licenseNumber,
+      experience: form.experience,
+      languages: form.languages,
+      workAreas: form.workAreas,
+    };
+    // Always save to localStorage first so it shows immediately
+    saveRegistration({
+      id: Date.now(),
+      ...regData,
+      status: "pending",
+      paymentScreenshotBase64,
+    } as any);
+    // Try to save to backend with retries so admin can see it on any device
+    const saveToBackend = async () => {
+      for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+          await apiSaveRegistration(regData);
+          return;
+        } catch {
+          await new Promise((res) => setTimeout(res, 2000 * (attempt + 1)));
+        }
+      }
+    };
+    saveToBackend().catch(() => {});
+    // Also try legacy actor registration (non-blocking)
+    if (actor) {
+      try {
+        const [a, b, c, d] = await Promise.all([
+          fileToBlob(docs.aadhar),
+          fileToBlob(docs.pan),
+          fileToBlob(docs.license),
+          fileToBlob(docs.selfie),
+        ]);
+        await actor.registerDriver(
+          form.name,
+          form.phone,
+          form.email,
+          form.city,
+          form.state,
+          a,
+          b,
+          c,
+          d,
+        );
+      } catch {
+        /* non-critical */
+      }
     }
+    setLoading(false);
+    setSubmittedAt(now);
+    setSubmitted(true);
   };
 
   if (submitted)

@@ -363,9 +363,11 @@ export default function AdminDashboard() {
       setBookings(mergedBks as any);
 
       const localRegs = getRegistrations();
+      // Merge by phone to avoid duplicates (backend uses sequential IDs, localStorage uses Date.now())
       const mergedRegs = [...regs];
       for (const lr of localRegs) {
-        if (!mergedRegs.some((r) => r.id === lr.id)) mergedRegs.push(lr as any);
+        if (!mergedRegs.some((r) => r.phone === lr.phone))
+          mergedRegs.push(lr as any);
       }
       setRegistrations(mergedRegs as any);
 
