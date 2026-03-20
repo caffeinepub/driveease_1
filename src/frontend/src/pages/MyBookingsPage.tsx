@@ -86,6 +86,19 @@ function getCustomerPhone(): string {
   return "";
 }
 
+function getRideOtp(bookingId: number): string {
+  try {
+    const stored = JSON.parse(localStorage.getItem("ride_otps") || "{}");
+    if (stored[String(bookingId)]) return stored[String(bookingId)];
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    stored[String(bookingId)] = otp;
+    localStorage.setItem("ride_otps", JSON.stringify(stored));
+    return otp;
+  } catch {
+    return "------";
+  }
+}
+
 function getLocalBookings(): LocalBooking[] {
   try {
     const a = JSON.parse(localStorage.getItem("driveease_bookings") || "[]");
@@ -290,6 +303,7 @@ export default function MyBookingsPage() {
   } | null>(null);
   const [stars, setStars] = useState(5);
   const [comment, setComment] = useState("");
+  const [payModal, setPayModal] = useState<number | null>(null);
   const [feedbackSent, setFeedbackSent] = useState(false);
 
   const reload = useCallback(async () => {
@@ -542,6 +556,21 @@ export default function MyBookingsPage() {
                       </p>
                     </div>
 
+                    {/* OTP for active/confirmed bookings */}
+                    {(b.status === "confirmed" || b.status === "pending") && (
+                      <div className="mt-3 bg-green-50 border border-green-200 rounded-xl p-3">
+                        <p className="text-xs text-green-700 font-semibold mb-1">
+                          🔐 Your Ride OTP (share with driver to start ride)
+                        </p>
+                        <p className="text-2xl font-bold text-green-800 tracking-widest">
+                          {getRideOtp(b.id)}
+                        </p>
+                        <p className="text-xs text-green-600 mt-1">
+                          Keep this private — only share when driver asks
+                        </p>
+                      </div>
+                    )}
+
                     <div className="mt-3 flex flex-wrap gap-2">
                       {isCompleted && !hasFeedback(b.id) && (
                         <Button
@@ -577,6 +606,18 @@ export default function MyBookingsPage() {
                         <Link to={`/track/${b.id}`}>Track Ride</Link>
                       </Button>
 
+                      {/* Pay Now for completed bookings */}
+                      {b.status === "completed" && (
+                        <Button
+                          size="sm"
+                          onClick={() => setPayModal(b.id)}
+                          className="text-xs bg-green-600 hover:bg-green-500 text-white gap-1"
+                          data-ocid={`bookings.pay_button.${idx + 1}`}
+                        >
+                          💳 Pay Now
+                        </Button>
+                      )}
+
                       {/* Download Invoice (confirmed/completed) */}
                       {isCompleted && (
                         <Button
@@ -610,6 +651,45 @@ export default function MyBookingsPage() {
           </div>
         )}
       </div>
+
+      {/* Payment Modal */}
+      <Dialog
+        open={payModal !== null}
+        onOpenChange={(o) => !o && setPayModal(null)}
+      >
+        <DialogContent data-ocid="bookings.dialog">
+          <DialogHeader>
+            <DialogTitle>Complete Payment</DialogTitle>
+          </DialogHeader>
+          <div className="text-center space-y-4">
+            <p className="text-gray-600 text-sm">
+              Scan QR code or use UPI to pay your driver
+            </p>
+            <div className="bg-green-50 rounded-xl p-4">
+              <img
+                src="/assets/uploads/WhatsApp-Image-2026-03-09-at-5.36.30-PM-1.jpeg"
+                alt="PhonePe QR"
+                className="w-48 h-48 mx-auto rounded-lg object-contain"
+              />
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 text-sm">
+              <p className="font-semibold text-gray-900">Krishna Kant Pandey</p>
+              <p className="text-gray-600">Axis Bank • A/C: 922010062230782</p>
+              <p className="text-gray-600">IFSC: UTIB0004620</p>
+            </div>
+            <p className="text-xs text-gray-500">
+              After payment, show the confirmation to your driver
+            </p>
+            <Button
+              onClick={() => setPayModal(null)}
+              className="w-full bg-green-600 hover:bg-green-500 text-white"
+              data-ocid="bookings.confirm_button"
+            >
+              Done - Payment Complete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Feedback Modal */}
       <Dialog

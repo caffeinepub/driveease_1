@@ -5,6 +5,7 @@ import Navbar from "./components/Navbar";
 import PWAInstallBanner from "./components/PWAInstallBanner";
 import { useActor } from "./hooks/useActor";
 import AdminDashboard from "./pages/AdminDashboard";
+import AvailableDriversPage from "./pages/AvailableDriversPage";
 import BookingPage from "./pages/BookingPage";
 import CustomerProfilePage from "./pages/CustomerProfilePage";
 import DriverLoginPage from "./pages/DriverLoginPage";
@@ -54,6 +55,7 @@ function AppContent() {
         {path === "/driver-nav" && <DriverNavPage />}
         {path === "/driver-login" && <DriverLoginPage />}
         {path === "/profile" && <CustomerProfilePage />}
+        {path === "/available-drivers" && <AvailableDriversPage />}
         {path.startsWith("/track/") && <TrackingPage />}
         {![
           "/",
@@ -67,6 +69,7 @@ function AppContent() {
           "/payment",
           "/driver-nav",
           "/profile",
+          "/available-drivers",
         ].includes(path) &&
           !path.startsWith("/book/") &&
           !path.startsWith("/track/") &&

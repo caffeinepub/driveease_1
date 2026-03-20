@@ -1,4 +1,4 @@
-import { ChevronDown, Download, Menu, X } from "lucide-react";
+import { Download, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "../router";
 import { useInstallPrompt } from "./PWAInstallBanner";
@@ -6,7 +6,6 @@ import { Button } from "./ui/button";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
-  const [servicesOpen, setServicesOpen] = useState(false);
   const { pathname } = useLocation();
   const { canInstall, triggerInstall } = useInstallPrompt();
 
@@ -17,16 +16,7 @@ export default function Navbar() {
     { to: "/", label: "Home" },
     { to: "/live-drivers", label: "🟢 Live Drivers" },
     { to: "/register-driver", label: "Drive With Us" },
-  ];
-
-  const servicesLinks = [
-    { to: "/subscriptions?plan=hourly", label: "Hourly Plan" },
-    { to: "/subscriptions?plan=daily", label: "Daily Plan" },
-    { to: "/subscriptions?plan=weekend", label: "Weekend Plan" },
-    { to: "/subscriptions", label: "All Plans" },
-    { to: "/insurance", label: "Insurance" },
-    { to: "/payment", label: "Pay" },
-    { to: "/driver-nav", label: "Driver Navigation" },
+    { to: "/available-drivers", label: "Find Drivers" },
   ];
 
   return (
@@ -56,60 +46,17 @@ export default function Navbar() {
             </Link>
           ))}
 
-          {/* Services Dropdown */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setServicesOpen(!servicesOpen)}
-              onBlur={() => setTimeout(() => setServicesOpen(false), 150)}
-              className="flex items-center gap-1 px-3 py-2 rounded text-sm font-medium transition-colors text-gray-300 hover:text-white hover:bg-gray-800"
-              data-ocid="navbar.services.toggle"
-            >
-              Services{" "}
-              <ChevronDown
-                size={14}
-                className={`transition-transform ${servicesOpen ? "rotate-180" : ""}`}
-              />
-            </button>
-            {servicesOpen && (
-              <div
-                className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl min-w-[180px] z-50"
-                data-ocid="navbar.services.dropdown_menu"
-              >
-                {servicesLinks.map((l) => (
-                  <Link
-                    key={l.to}
-                    to={l.to}
-                    onClick={() => setServicesOpen(false)}
-                    className="block px-4 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-gray-700 first:rounded-t-lg last:rounded-b-lg"
-                    data-ocid="navbar.link"
-                  >
-                    {l.label}
-                  </Link>
-                ))}
-                {customer?.loggedIn && (
-                  <>
-                    <Link
-                      to="/my-bookings"
-                      onClick={() => setServicesOpen(false)}
-                      className="block px-4 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-gray-700"
-                      data-ocid="navbar.link"
-                    >
-                      My History
-                    </Link>
-                    <Link
-                      to="/profile"
-                      onClick={() => setServicesOpen(false)}
-                      className="block px-4 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded-b-lg"
-                      data-ocid="navbar.link"
-                    >
-                      My Profile
-                    </Link>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
+          <Link
+            to="/subscriptions"
+            className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
+              pathname === "/subscriptions"
+                ? "text-green-400 bg-gray-800"
+                : "text-gray-300 hover:text-white hover:bg-gray-800"
+            }`}
+            data-ocid="navbar.link"
+          >
+            Plans
+          </Link>
 
           {/* My Bookings — visible when customer is logged in */}
           {customer?.loggedIn && (
@@ -227,42 +174,14 @@ export default function Navbar() {
               My Bookings
             </Link>
           )}
-          <div className="py-1 border-t border-gray-700 mt-1">
-            <p className="text-xs text-gray-500 py-1 uppercase tracking-wider">
-              Services
-            </p>
-            {servicesLinks.map((l) => (
-              <Link
-                key={l.to}
-                to={l.to}
-                onClick={() => setOpen(false)}
-                className="block py-2 text-gray-300 hover:text-green-400 pl-2"
-                data-ocid="navbar.link"
-              >
-                {l.label}
-              </Link>
-            ))}
-            {customer?.loggedIn && (
-              <>
-                <Link
-                  to="/my-bookings"
-                  onClick={() => setOpen(false)}
-                  className="block py-2 text-gray-300 hover:text-green-400 pl-2"
-                  data-ocid="navbar.link"
-                >
-                  My History
-                </Link>
-                <Link
-                  to="/profile"
-                  onClick={() => setOpen(false)}
-                  className="block py-2 text-gray-300 hover:text-green-400 pl-2"
-                  data-ocid="navbar.link"
-                >
-                  My Profile
-                </Link>
-              </>
-            )}
-          </div>
+          <Link
+            to="/subscriptions"
+            onClick={() => setOpen(false)}
+            className="block py-2 text-gray-300 hover:text-green-400"
+            data-ocid="navbar.link"
+          >
+            Plans
+          </Link>
           <Link
             to="/driver-login"
             onClick={() => setOpen(false)}

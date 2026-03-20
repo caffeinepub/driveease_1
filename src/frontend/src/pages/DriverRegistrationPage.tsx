@@ -171,7 +171,6 @@ export default function DriverRegistrationPage() {
   });
   const [docs, setDocs] = useState<{
     aadhar?: File;
-    pan?: File;
     license?: File;
     selfie?: File;
   }>({});
@@ -199,7 +198,7 @@ export default function DriverRegistrationPage() {
 
   const handleSubmit = async () => {
     setError("");
-    if (!docs.aadhar || !docs.pan || !docs.license || !docs.selfie) {
+    if (!docs.aadhar || !docs.license || !docs.selfie) {
       setError("Please upload all documents.");
       return;
     }
@@ -244,11 +243,10 @@ export default function DriverRegistrationPage() {
     // Also try legacy actor registration (non-blocking)
     if (actor) {
       try {
-        const [a, b, c, d] = await Promise.all([
-          fileToBlob(docs.aadhar),
-          fileToBlob(docs.pan),
-          fileToBlob(docs.license),
-          fileToBlob(docs.selfie),
+        const [a, c, d] = await Promise.all([
+          fileToBlob(docs.aadhar!),
+          fileToBlob(docs.license!),
+          fileToBlob(docs.selfie!),
         ]);
         await actor.registerDriver(
           form.name,
@@ -257,7 +255,7 @@ export default function DriverRegistrationPage() {
           form.city,
           form.state,
           a,
-          b,
+          a,
           c,
           d,
         );
@@ -505,7 +503,6 @@ export default function DriverRegistrationPage() {
               {(
                 [
                   { key: "aadhar", label: "Aadhar Card *" },
-                  { key: "pan", label: "PAN Card *" },
                   { key: "license", label: "Driving License *" },
                   { key: "selfie", label: "Recent Selfie *" },
                 ] as const
@@ -553,12 +550,7 @@ export default function DriverRegistrationPage() {
                 <Button
                   className="flex-1 bg-[#22c55e] hover:bg-[#16a34a] text-black font-semibold"
                   onClick={() => {
-                    if (
-                      !docs.aadhar ||
-                      !docs.pan ||
-                      !docs.license ||
-                      !docs.selfie
-                    ) {
+                    if (!docs.aadhar || !docs.license || !docs.selfie) {
                       setError("Please upload all documents.");
                       return;
                     }

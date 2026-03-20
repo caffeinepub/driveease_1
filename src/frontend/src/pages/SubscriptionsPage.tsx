@@ -77,6 +77,28 @@ const plans = [
     ],
     seniorAddons: [],
   },
+  {
+    id: "family",
+    name: "Family Plan",
+    casualPrice: null,
+    monthlyPrice: 2800,
+    period: "month",
+    featured: false,
+    seniorCare: true,
+    coverage: "Up to 4 family members, flexible scheduling",
+    features: [
+      "Dedicated family driver",
+      "Priority booking for all members",
+      "24/7 support",
+      "Family tracking via app",
+      "Senior care add-ons included",
+    ],
+    seniorAddons: [
+      "Medical appointment priority",
+      "Etiquette-trained driver",
+      "24/7 helpline for seniors",
+    ],
+  },
 ];
 
 function getCustomerData(): { name: string; phone: string } {

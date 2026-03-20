@@ -168,6 +168,9 @@ export default function DriverLoginPage() {
   const [upiId, setUpiId] = useState("");
   const [accountHolder, setAccountHolder] = useState("");
   const [withdrawStatus, setWithdrawStatus] = useState("");
+  const [otpInputs, setOtpInputs] = useState<Record<number, string>>({});
+  const [otpErrors, setOtpErrors] = useState<Record<number, string>>({});
+  const [rideStarted, setRideStarted] = useState<Record<number, boolean>>({});
   const [withdrawError, setWithdrawError] = useState("");
   const [checkingBackend, setCheckingBackend] = useState(false);
 
@@ -776,6 +779,7 @@ export default function DriverLoginPage() {
                 <p className="text-[#86efac]/60 text-xs">
                   🕒 {formatIST(req.timestamp)}
                 </p>
+
                 <p className="text-green-400 font-semibold mt-1">
                   ₹{req.amount.toLocaleString()}
                 </p>
@@ -880,6 +884,138 @@ export default function DriverLoginPage() {
             Request Withdrawal
           </Button>
         </div>
+
+        {/* OTP Verification for confirmed bookings */}
+        {driverBookings.filter((b) => b.status === "confirmed").length > 0 && (
+          <div className="bg-[#111a14] border border-[#22c55e]/30 rounded-2xl p-5">
+            <h3 className="font-semibold text-white mb-4">
+              🚗 Active Rides — OTP Verification
+            </h3>
+            {driverBookings
+              .filter((b) => b.status === "confirmed")
+              .map((b) => (
+                <div
+                  key={b.id}
+                  className="bg-[#0a0f0d] border border-[#1a2e1a] rounded-xl p-4 mb-3"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-white font-medium">{b.customerName}</p>
+                    <p className="text-green-400 font-semibold">
+                      ₹{b.total.toLocaleString()}
+                    </p>
+                  </div>
+                  <p className="text-[#86efac] text-xs">
+                    📅 {formatIST(b.startDate)}
+                  </p>
+                  {!rideStarted[b.id] ? (
+                    <div className="mt-3 bg-[#0a0f0d] border border-[#1a2e1a] rounded-xl p-3">
+                      <p className="text-[#86efac] text-xs font-semibold mb-2">
+                        Enter Customer OTP to Start Ride
+                      </p>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          maxLength={6}
+                          value={otpInputs[b.id] || ""}
+                          onChange={(e) =>
+                            setOtpInputs((prev) => ({
+                              ...prev,
+                              [b.id]: e.target.value,
+                            }))
+                          }
+                          placeholder="6-digit OTP"
+                          className="flex-1 bg-[#111a14] border border-[#1a2e1a] rounded-lg px-3 py-2 text-white text-sm placeholder:text-gray-600 outline-none focus:border-[#22c55e]"
+                          data-ocid="driver_login.input"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const stored = JSON.parse(
+                              localStorage.getItem("ride_otps") || "{}",
+                            );
+                            const correctOtp = stored[String(b.id)];
+                            if (otpInputs[b.id] === correctOtp) {
+                              setRideStarted((prev) => ({
+                                ...prev,
+                                [b.id]: true,
+                              }));
+                              setOtpErrors((prev) => ({ ...prev, [b.id]: "" }));
+                              const allBks = JSON.parse(
+                                localStorage.getItem(
+                                  "driveease_all_bookings",
+                                ) || "[]",
+                              );
+                              const updated = allBks.map(
+                                (bk: { id: number; status: string }) =>
+                                  bk.id === b.id
+                                    ? { ...bk, status: "in-progress" }
+                                    : bk,
+                              );
+                              localStorage.setItem(
+                                "driveease_all_bookings",
+                                JSON.stringify(updated),
+                              );
+                            } else {
+                              setOtpErrors((prev) => ({
+                                ...prev,
+                                [b.id]:
+                                  "Incorrect OTP. Ask customer for the correct code.",
+                              }));
+                            }
+                          }}
+                          className="bg-[#22c55e] hover:bg-[#16a34a] text-black font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
+                          data-ocid="driver_login.confirm_button"
+                        >
+                          Verify
+                        </button>
+                      </div>
+                      {otpErrors[b.id] && (
+                        <p
+                          className="text-red-400 text-xs mt-1"
+                          data-ocid="driver_login.error_state"
+                        >
+                          {otpErrors[b.id]}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mt-3 flex items-center gap-2">
+                      <span className="text-green-400 text-sm font-semibold">
+                        ✅ OTP Verified
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const allBks = JSON.parse(
+                            localStorage.getItem("driveease_all_bookings") ||
+                              "[]",
+                          );
+                          const updated = allBks.map(
+                            (bk: { id: number; status: string }) =>
+                              bk.id === b.id
+                                ? { ...bk, status: "completed" }
+                                : bk,
+                          );
+                          localStorage.setItem(
+                            "driveease_all_bookings",
+                            JSON.stringify(updated),
+                          );
+                          setRideStarted((prev) => ({
+                            ...prev,
+                            [b.id]: false,
+                          }));
+                        }}
+                        className="bg-[#22c55e] hover:bg-[#16a34a] text-black font-semibold px-4 py-2 rounded-xl text-sm"
+                        data-ocid="driver_login.primary_button"
+                      >
+                        🚗 Start Ride
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+          </div>
+        )}
 
         {driverBookings.length > 0 && (
           <div className="bg-[#111a14] border border-[#1a2e1a] rounded-2xl p-5">
