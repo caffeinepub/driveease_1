@@ -1,4 +1,4 @@
-import { Mail, Phone, Shield } from "lucide-react";
+import { Mail, MessageCircle, Phone, Shield } from "lucide-react";
 import { Link } from "../router";
 
 export default function Footer() {
@@ -20,18 +20,27 @@ export default function Footer() {
           </p>
           <div className="space-y-2 text-sm">
             <a
-              href="tel:+919876543210"
+              href="tel:+917836887228"
               className="flex items-center gap-2 hover:text-green-400 transition-colors"
             >
               <Phone size={14} className="text-green-400 shrink-0" />
-              <span>+91 98765 43210</span>
+              <span>+91-7836887228</span>
             </a>
             <a
-              href="mailto:support@driveease.in"
+              href="mailto:Krishnalivekeeping01@gmail.com"
               className="flex items-center gap-2 hover:text-green-400 transition-colors"
             >
               <Mail size={14} className="text-green-400 shrink-0" />
-              <span>support@driveease.in</span>
+              <span>Krishnalivekeeping01@gmail.com</span>
+            </a>
+            <a
+              href="https://wa.me/917836887228"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 hover:text-green-400 transition-colors"
+            >
+              <MessageCircle size={14} className="text-green-400 shrink-0" />
+              <span>WhatsApp Us</span>
             </a>
           </div>
         </div>
@@ -106,7 +115,21 @@ export default function Footer() {
             </div>
             <div className="flex items-center gap-2">
               <Mail size={14} className="text-green-400 shrink-0" />
-              <span>support@driveease.in</span>
+              <a
+                href="mailto:Krishnalivekeeping01@gmail.com"
+                className="hover:text-green-400 transition-colors"
+              >
+                Krishnalivekeeping01@gmail.com
+              </a>
+            </div>
+            <div className="flex items-center gap-2">
+              <Phone size={14} className="text-green-400 shrink-0" />
+              <a
+                href="tel:+917836887228"
+                className="hover:text-green-400 transition-colors"
+              >
+                Krishna Pandey: +91-7836887228
+              </a>
             </div>
           </div>
         </div>

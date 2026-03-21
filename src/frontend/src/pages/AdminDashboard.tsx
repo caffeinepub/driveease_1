@@ -364,17 +364,65 @@ export default function AdminDashboard() {
         enqs?.length
       );
 
-      // Backend is the single source of truth - no localStorage merging
-      setBookings((bks || []) as any);
-      setRegistrations((regs || []) as any);
+      // Backend is primary source; fall back to localStorage if empty
+      let finalRegs = (regs || []) as any[];
+      let finalBks = (bks || []) as any[];
+      let finalEnqs = (enqs || []) as any[];
+
+      if (!finalRegs.length) {
+        try {
+          const localRegs = JSON.parse(
+            localStorage.getItem("driveease_registrations") || "[]",
+          );
+          if (localRegs.length) {
+            finalRegs = localRegs;
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      if (!finalBks.length) {
+        try {
+          const localBks = JSON.parse(
+            localStorage.getItem("driveease_bookings") || "[]",
+          );
+          if (localBks.length) {
+            finalBks = localBks;
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      if (!finalEnqs.length) {
+        try {
+          const localEnqs = JSON.parse(
+            localStorage.getItem("driveease_enquiries") || "[]",
+          );
+          if (localEnqs.length) {
+            finalEnqs = localEnqs;
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+
+      setBookings(finalBks as any);
+      setRegistrations(finalRegs as any);
       setOtpLogins(logins || []);
-      setEnquiries((enqs || []) as any);
+      setEnquiries(finalEnqs as any);
 
       // Update sync source indicator
       if (backendHasData) {
         setSyncSource("backend");
+        setSyncError("");
+      } else if (finalRegs.length || finalBks.length || finalEnqs.length) {
+        setSyncSource("local");
+        setSyncError("");
       } else {
         setSyncSource("local");
+        setSyncError(
+          "No data found. If drivers have registered, click Sync Now to retry.",
+        );
       }
 
       const statuses = await apiGetAllDriverStatuses().catch(() => []);
@@ -398,6 +446,7 @@ export default function AdminDashboard() {
   const [syncSource, setSyncSource] = useState<
     "backend" | "local" | "mixed" | ""
   >("");
+  const [syncError, setSyncError] = useState<string>("");
 
   const syncNow = useCallback(async () => {
     await loadAll(true);
@@ -866,6 +915,16 @@ export default function AdminDashboard() {
         </div>
 
         <div className="p-6">
+          {/* ── Sync Error Banner ─────────────────────────────────── */}
+          {syncError && (
+            <div
+              className="mb-4 flex items-center gap-2 bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm px-4 py-3 rounded-xl"
+              data-ocid="admin.error_state"
+            >
+              <span className="text-yellow-500">⚠</span>
+              <span>{syncError}</span>
+            </div>
+          )}
           {/* ── BOOKINGS TAB ──────────────────────────────────────── */}
           {tab === "bookings" && (
             <div className="space-y-6">
@@ -1604,121 +1663,155 @@ export default function AdminDashboard() {
           {/* ── KYC VERIFICATION TAB ────────────────────────────────── */}
           {tab === "kyc" && (
             <div className="space-y-4">
-              <div className={`${cardBg} border rounded-xl p-4`}>
-                <p className={`text-sm ${subtextColor} mb-1`}>
-                  Pending KYC Reviews
-                </p>
-                <p className={`text-3xl font-black ${textColor}`}>
-                  {registrations.filter((r) => r.status === "pending").length}
-                </p>
+              <div className="flex gap-4 flex-wrap">
+                <div
+                  className={`${cardBg} border rounded-xl p-4 flex-1 min-w-32`}
+                >
+                  <p className={`text-sm ${subtextColor} mb-1`}>
+                    Pending Review
+                  </p>
+                  <p className="text-3xl font-black text-yellow-600">
+                    {registrations.filter((r) => r.status === "pending").length}
+                  </p>
+                </div>
+                <div
+                  className={`${cardBg} border rounded-xl p-4 flex-1 min-w-32`}
+                >
+                  <p className={`text-sm ${subtextColor} mb-1`}>Approved</p>
+                  <p className="text-3xl font-black text-green-600">
+                    {
+                      registrations.filter((r) => r.status === "approved")
+                        .length
+                    }
+                  </p>
+                </div>
+                <div
+                  className={`${cardBg} border rounded-xl p-4 flex-1 min-w-32`}
+                >
+                  <p className={`text-sm ${subtextColor} mb-1`}>
+                    Total Registrations
+                  </p>
+                  <p className={`text-3xl font-black ${textColor}`}>
+                    {registrations.length}
+                  </p>
+                </div>
               </div>
-              {registrations.filter((r) => r.status === "pending").length ===
-              0 ? (
+              {registrations.length === 0 ? (
                 <div
                   className={`text-center py-16 ${subtextColor}`}
                   data-ocid="admin.kyc.empty_state"
                 >
                   <Shield size={40} className="mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">All KYC reviews completed</p>
+                  <p className="font-medium">
+                    No registrations yet. Click Sync Now to load.
+                  </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {registrations
-                    .filter((r) => r.status === "pending")
-                    .map((r, idx) => (
-                      <div
-                        key={r.id}
-                        className={`${cardBg} border rounded-xl p-5`}
-                        data-ocid={`admin.kyc.item.${idx + 1}`}
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <div>
-                            <h3 className={`font-bold ${textColor}`}>
-                              {r.name}
-                            </h3>
-                            <p className={`text-sm ${subtextColor}`}>
-                              {r.phone} · {r.city}
-                            </p>
-                          </div>
-                          <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200">
-                            Pending KYC
-                          </Badge>
+                  {registrations.map((r, idx) => (
+                    <div
+                      key={r.id}
+                      className={`${cardBg} border rounded-xl p-5`}
+                      data-ocid={`admin.kyc.item.${idx + 1}`}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <h3 className={`font-bold ${textColor}`}>{r.name}</h3>
+                          <p className={`text-sm ${subtextColor}`}>
+                            {r.phone} · {r.city}
+                          </p>
                         </div>
-
-                        {/* Document slots */}
-                        <div className="grid grid-cols-2 gap-2 mb-4">
-                          {[
-                            {
-                              label: "Aadhar",
-                              field: "aadharBase64",
-                            },
-                            { label: "DL", field: "licenseBase64" },
-                            { label: "Selfie", field: "selfieBase64" },
-                            {
-                              label: "Payment",
-                              field: "paymentScreenshotBase64",
-                            },
-                          ].map((doc) => {
-                            const base64 = (r as any)[doc.field];
-                            return (
-                              <div
-                                key={doc.label}
-                                className={`rounded-lg border ${
-                                  dm
-                                    ? "border-gray-600 bg-gray-700"
-                                    : "border-gray-200 bg-gray-50"
-                                } p-2 text-center`}
-                              >
-                                {base64 ? (
-                                  <img
-                                    src={base64}
-                                    alt={doc.label}
-                                    className="w-full h-20 object-cover rounded"
-                                  />
-                                ) : (
-                                  <div className="h-20 flex items-center justify-center">
-                                    <p className={`text-xs ${subtextColor}`}>
-                                      {doc.label} not uploaded
-                                    </p>
-                                  </div>
-                                )}
-                                <p
-                                  className={`text-xs font-medium mt-1 ${subtextColor}`}
-                                >
-                                  {doc.label}
-                                </p>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              updateRegistrationStatus(r.id, "approved");
-                              await apiUpdateRegistrationStatus(
-                                r.id,
-                                "approved",
-                              ).catch(() => {});
-                              loadAll();
-                            }}
-                            className="flex-1 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-500 font-semibold"
-                            data-ocid={`admin.kyc.confirm_button.${idx + 1}`}
-                          >
-                            ✓ Verify &amp; Approve
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setKycRejectId(r.id)}
-                            className="flex-1 py-2 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-semibold"
-                            data-ocid={`admin.kyc.delete_button.${idx + 1}`}
-                          >
-                            ✕ Reject
-                          </button>
-                        </div>
+                        <Badge
+                          className={
+                            r.status === "approved"
+                              ? "bg-green-100 text-green-700 border-green-200"
+                              : r.status === "rejected"
+                                ? "bg-red-100 text-red-700 border-red-200"
+                                : "bg-yellow-100 text-yellow-700 border-yellow-200"
+                          }
+                        >
+                          {r.status === "approved"
+                            ? "✓ Approved"
+                            : r.status === "rejected"
+                              ? "✗ Rejected"
+                              : "Pending KYC"}
+                        </Badge>
                       </div>
-                    ))}
+
+                      {/* Document slots */}
+                      <div className="grid grid-cols-2 gap-2 mb-4">
+                        {[
+                          {
+                            label: "Aadhar",
+                            field: "aadharBase64",
+                          },
+                          { label: "DL", field: "licenseBase64" },
+                          { label: "Selfie", field: "selfieBase64" },
+                          {
+                            label: "Payment",
+                            field: "paymentScreenshotBase64",
+                          },
+                        ].map((doc) => {
+                          const base64 = (r as any)[doc.field];
+                          return (
+                            <div
+                              key={doc.label}
+                              className={`rounded-lg border ${
+                                dm
+                                  ? "border-gray-600 bg-gray-700"
+                                  : "border-gray-200 bg-gray-50"
+                              } p-2 text-center`}
+                            >
+                              {base64 ? (
+                                <img
+                                  src={base64}
+                                  alt={doc.label}
+                                  className="w-full h-20 object-cover rounded"
+                                />
+                              ) : (
+                                <div className="h-20 flex items-center justify-center">
+                                  <p className={`text-xs ${subtextColor}`}>
+                                    {doc.label} not uploaded
+                                  </p>
+                                </div>
+                              )}
+                              <p
+                                className={`text-xs font-medium mt-1 ${subtextColor}`}
+                              >
+                                {doc.label}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            updateRegistrationStatus(r.id, "approved");
+                            await apiUpdateRegistrationStatus(
+                              r.id,
+                              "approved",
+                            ).catch(() => {});
+                            loadAll();
+                          }}
+                          className="flex-1 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-500 font-semibold"
+                          data-ocid={`admin.kyc.confirm_button.${idx + 1}`}
+                        >
+                          ✓ Verify &amp; Approve
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setKycRejectId(r.id)}
+                          className="flex-1 py-2 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-semibold"
+                          data-ocid={`admin.kyc.delete_button.${idx + 1}`}
+                        >
+                          ✕ Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -2368,6 +2461,69 @@ export default function AdminDashboard() {
                       />
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* Contact Information */}
+              <div className={`${cardBg} border rounded-xl p-6 space-y-4`}>
+                <h2 className={`font-bold text-lg ${textColor}`}>
+                  📞 Contact Information
+                </h2>
+                <p className={`text-sm ${subtextColor}`}>
+                  Admin contact details for customer and driver support.
+                </p>
+                <div className="space-y-3">
+                  {[
+                    {
+                      label: "Phone / WhatsApp",
+                      value: "+91-7836887228",
+                      href: "tel:+917836887228",
+                    },
+                    {
+                      label: "Email",
+                      value: "Krishnalivekeeping01@gmail.com",
+                      href: "mailto:Krishnalivekeeping01@gmail.com",
+                    },
+                    {
+                      label: "WhatsApp Direct",
+                      value: "wa.me/917836887228",
+                      href: "https://wa.me/917836887228",
+                    },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className={`flex items-center justify-between p-3 rounded-lg border ${dm ? "bg-gray-700 border-gray-600" : "bg-green-50 border-green-100"}`}
+                    >
+                      <div>
+                        <p className={`text-xs ${subtextColor} mb-0.5`}>
+                          {item.label}
+                        </p>
+                        <a
+                          href={item.href}
+                          target={
+                            item.href.startsWith("http") ? "_blank" : undefined
+                          }
+                          rel="noopener noreferrer"
+                          className="text-sm font-medium text-green-600 hover:text-green-500"
+                        >
+                          {item.value}
+                        </a>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs"
+                        onClick={() => {
+                          navigator.clipboard
+                            .writeText(item.value)
+                            .catch(() => {});
+                        }}
+                        data-ocid="admin.settings.secondary_button"
+                      >
+                        Copy
+                      </Button>
+                    </div>
+                  ))}
                 </div>
               </div>
 
