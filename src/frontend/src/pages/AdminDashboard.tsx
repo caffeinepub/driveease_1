@@ -7,6 +7,7 @@ import {
   Clock,
   Download,
   Eye,
+  EyeOff,
   Loader2,
   LogOut,
   MapPin,
@@ -61,9 +62,17 @@ import {
 } from "../components/ui/table";
 import { Textarea } from "../components/ui/textarea";
 import {
+  getAlertType,
+  getApiKey,
+  setAlertType as saveAlertType,
+  setApiKey as saveApiKey,
+} from "../config/apiConfig";
+import type { AlertType } from "../config/apiConfig";
+import {
   apiGetAllDriverStatuses,
   apiGetBookings,
   apiGetEnquiries,
+  apiGetOnlineDrivers,
   apiGetOtpLogins,
   apiGetRegistrations,
   apiUpdateBookingStatus,
@@ -73,10 +82,6 @@ import {
 import type { ApiDriverStatus } from "../utils/backendApi";
 import { formatIST } from "../utils/istFormat";
 import {
-  getBookings,
-  getEnquiries,
-  getOtpLogins,
-  getRegistrations,
   updateBookingStatus,
   updateEnquiryStatus,
   updateRegistrationStatus,
@@ -233,14 +238,6 @@ function getDriverOnlineSince(driverId: string | number): string | null {
   return localStorage.getItem(`driveease_driver_online_since_${driverId}`);
 }
 
-function getDriverStatus(): Record<string, string> {
-  try {
-    return JSON.parse(localStorage.getItem("driveease_driver_status") || "{}");
-  } catch {
-    return {};
-  }
-}
-
 // ── Revenue chart data ────────────────────────────────────────────────────
 function getLast7DaysRevenue(
   bookings: LocalBooking[],
@@ -281,7 +278,7 @@ export default function AdminDashboard() {
   const [registrations, setRegistrations] = useState<LocalRegistration[]>([]);
   const [otpLogins, setOtpLogins] = useState<LocalOtpLogin[]>([]);
   const [enquiries, setEnquiries] = useState<LocalEnquiry[]>([]);
-  const [drivers, setDrivers] = useState<any[]>([]);
+  const [drivers] = useState<any[]>([]);
   const [driverRates, setDriverRates] = useState<Record<number, number>>({});
   const [ratesSaved, setRatesSaved] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -290,6 +287,12 @@ export default function AdminDashboard() {
   // Commission
   const [commissionRate, setCommissionRate] = useState(getCommissionRate);
   const [commissionSaved, setCommissionSaved] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState(() => getApiKey());
+  const [alertTypeState, setAlertTypeState] = useState<AlertType>(() =>
+    getAlertType(),
+  );
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [apiConfigSaved, setApiConfigSaved] = useState(false);
 
   // Pricing config
   const [pricingConfig, setPricingConfig] =
@@ -310,6 +313,7 @@ export default function AdminDashboard() {
   const [bookingDateFilter, setBookingDateFilter] = useState("");
   const [driverNameFilter, setDriverNameFilter] = useState("");
   const [driverCityFilter, setDriverCityFilter] = useState("");
+  const [driverStatusFilter, setDriverStatusFilter] = useState("");
   const [regNameFilter, setRegNameFilter] = useState("");
   const [regCityFilter, setRegCityFilter] = useState("");
   const [regStatusFilter, setRegStatusFilter] = useState("");
@@ -358,62 +362,20 @@ export default function AdminDashboard() {
       ]);
 
       const backendHasData = !!(bks || regs || logins || enqs);
-      let hasAnyLocalFallback = false;
 
-      // Bookings: backend is source of truth; local fills in anything not on backend
-      const localBks = getBookings();
-      const mergedBks = bks ? [...bks] : [];
-      for (const lb of localBks) {
-        if (!mergedBks.some((b) => b.id === lb.id)) {
-          mergedBks.push(lb as any);
-          if (bks) hasAnyLocalFallback = true;
-        }
-      }
-      setBookings(mergedBks as any);
-
-      // Registrations: backend takes priority by phone
-      const localRegs = getRegistrations();
-      const mergedRegs = regs ? [...regs] : [];
-      for (const lr of localRegs) {
-        if (!mergedRegs.some((r) => r.phone === lr.phone)) {
-          mergedRegs.push(lr as any);
-          if (regs) hasAnyLocalFallback = true;
-        }
-      }
-      setRegistrations(mergedRegs as any);
-
-      // Logins
-      const localLogins = getOtpLogins();
-      const mergedLogins = logins ? [...logins] : [];
-      for (const ll of localLogins) {
-        if (!mergedLogins.some((l) => l.id === ll.id)) {
-          mergedLogins.push(ll as any);
-          if (logins) hasAnyLocalFallback = true;
-        }
-      }
-      setOtpLogins(mergedLogins);
-
-      // Enquiries
-      const localEnqs = getEnquiries();
-      const mergedEnqs = enqs ? [...enqs] : [];
-      for (const le of localEnqs) {
-        if (!mergedEnqs.some((e) => e.id === le.id)) {
-          mergedEnqs.push(le as any);
-          if (enqs) hasAnyLocalFallback = true;
-        }
-      }
-      setEnquiries(mergedEnqs as any);
+      // Backend is the single source of truth - no localStorage merging
+      setBookings((bks || []) as any);
+      setRegistrations((regs || []) as any);
+      setOtpLogins(logins || []);
+      setEnquiries((enqs || []) as any);
 
       // Update sync source indicator
-      if (backendHasData && !hasAnyLocalFallback) {
+      if (backendHasData) {
         setSyncSource("backend");
-      } else if (backendHasData && hasAnyLocalFallback) {
-        setSyncSource("mixed");
       } else {
         setSyncSource("local");
       }
 
-      setDrivers([]);
       const statuses = await apiGetAllDriverStatuses().catch(() => []);
       setBackendDriverStatuses(statuses);
       try {
@@ -431,11 +393,6 @@ export default function AdminDashboard() {
   }, []);
 
   const [autoSync, setAutoSync] = useState(false);
-  const lastSyncCountsRef = useRef({
-    registrations: 0,
-    bookings: 0,
-    enquiries: 0,
-  });
   const [syncToast, setSyncToast] = useState("");
   const [syncSource, setSyncSource] = useState<
     "backend" | "local" | "mixed" | ""
@@ -443,42 +400,24 @@ export default function AdminDashboard() {
 
   const syncNow = useCallback(async () => {
     await loadAll(true);
-    const newRegCount = getRegistrations().length;
-    const newBkCount = getBookings().length;
-    const newEnqCount = getEnquiries().length;
-    const newItems =
-      newRegCount -
-      lastSyncCountsRef.current.registrations +
-      (newBkCount - lastSyncCountsRef.current.bookings) +
-      (newEnqCount - lastSyncCountsRef.current.enquiries);
-    if (newItems > 0) {
-      (() => {
-        try {
-          const ctx = new AudioContext();
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.frequency.value = 880;
-          gain.gain.setValueAtTime(0.3, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-          osc.start(ctx.currentTime);
-          osc.stop(ctx.currentTime + 0.5);
-        } catch {
-          /* ignore */
-        }
-      })();
-      setSyncToast(
-        `Synced! ${newItems} new item${newItems !== 1 ? "s" : ""} found`,
-      );
-    } else {
-      setSyncToast("Already up to date");
-    }
-    lastSyncCountsRef.current = {
-      registrations: newRegCount,
-      bookings: newBkCount,
-      enquiries: newEnqCount,
-    };
+    // Play a chime on sync
+    (() => {
+      try {
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.5);
+      } catch {
+        /* ignore */
+      }
+    })();
+    setSyncToast("Data synced from server");
     setTimeout(() => setSyncToast(""), 3000);
   }, [loadAll]);
 
@@ -520,6 +459,13 @@ export default function AdminDashboard() {
     localStorage.setItem("driveease_driver_rates", JSON.stringify(driverRates));
     setRatesSaved(true);
     setTimeout(() => setRatesSaved(false), 2000);
+  };
+
+  const saveApiConfig = () => {
+    saveApiKey(apiKeyInput);
+    saveAlertType(alertTypeState);
+    setApiConfigSaved(true);
+    setTimeout(() => setApiConfigSaved(false), 2000);
   };
 
   const saveCommission = () => {
@@ -603,12 +549,13 @@ export default function AdminDashboard() {
   }
 
   // ── Online drivers ─────────────────────────────────────────────────────
-  const driverStatus = getDriverStatus();
-  const onlineRegisteredDrivers = getRegistrations().filter(
-    (r) =>
-      r.status === "approved" &&
-      (driverStatus[String(r.id)] === "online" ||
-        driverStatus[r.phone] === "online"),
+  const onlinePhoneSet = new Set(
+    backendDriverStatuses
+      .filter((s) => s.status === "online")
+      .map((s) => s.phone),
+  );
+  const onlineRegisteredDrivers = registrations.filter(
+    (r) => r.status === "approved" && onlinePhoneSet.has(r.phone),
   );
   const onlineCount = onlineRegisteredDrivers.length;
 
@@ -690,21 +637,18 @@ export default function AdminDashboard() {
     return matchSearch && matchDate;
   });
 
-  const allDriverRows = registrations
-    .filter((r) => r.status === "approved")
-    .map((r) => ({
-      id: `reg-${r.id}`,
-      name: r.name,
-      phone: r.phone,
-      city: r.city,
-      state: r.state,
-      rating: 4.5,
-      pricePerDay: 1200,
-      experienceYears: 2,
-      isOnline:
-        driverStatus[String(r.id)] === "online" ||
-        driverStatus[r.phone] === "online",
-    }));
+  const allDriverRows = registrations.map((r) => ({
+    id: `reg-${r.id}`,
+    regId: r.id,
+    name: r.name,
+    phone: r.phone,
+    city: r.city,
+    state: r.state,
+    status: r.status as "pending" | "approved" | "rejected",
+    vehicleType: r.vehicleType || "—",
+    experience: r.experience || "—",
+    isOnline: onlinePhoneSet.has(r.phone),
+  }));
 
   const filteredDriverRows = allDriverRows.filter((d) => {
     const matchName =
@@ -713,7 +657,8 @@ export default function AdminDashboard() {
     const matchCity =
       !driverCityFilter ||
       d.city.toLowerCase().includes(driverCityFilter.toLowerCase());
-    return matchName && matchCity;
+    const matchStatus = !driverStatusFilter || d.status === driverStatusFilter;
+    return matchName && matchCity && matchStatus;
   });
 
   const filteredRegs = registrations.filter((r) => {
@@ -791,10 +736,14 @@ export default function AdminDashboard() {
               key={item.key}
               type="button"
               onClick={() => setTab(item.key)}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
-                tab === item.key
-                  ? "bg-green-600 text-white"
-                  : "text-gray-300 hover:bg-gray-800"
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                tab === item.key && item.key === "live-drivers"
+                  ? "bg-green-600 text-white font-bold"
+                  : tab !== item.key && item.key === "live-drivers"
+                    ? "bg-green-100 text-black hover:bg-green-200"
+                    : tab === item.key
+                      ? "bg-green-600 text-white"
+                      : "text-gray-300 hover:bg-gray-800"
               }`}
               data-ocid={`admin.${item.key}.tab`}
             >
@@ -1207,7 +1156,12 @@ export default function AdminDashboard() {
               >
                 <div>
                   <p className={`text-sm ${subtextColor}`}>
-                    Total Approved Drivers
+                    Total Drivers (
+                    {
+                      allDriverRows.filter((d) => d.status === "approved")
+                        .length
+                    }{" "}
+                    Approved)
                   </p>
                   <p className={`text-3xl font-black ${textColor}`}>
                     {filteredDriverRows.length}
@@ -1252,6 +1206,21 @@ export default function AdminDashboard() {
                   className={`w-48 ${inputCls}`}
                   data-ocid="admin.drivers.input"
                 />
+                <select
+                  value={driverStatusFilter}
+                  onChange={(e) => setDriverStatusFilter(e.target.value)}
+                  className={`border rounded-md px-3 py-2 text-sm ${
+                    dm
+                      ? "bg-gray-700 border-gray-600 text-gray-100"
+                      : "bg-white border-gray-300"
+                  }`}
+                  data-ocid="admin.drivers.select"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </select>
               </div>
               <div
                 className={`overflow-x-auto rounded-xl border ${tableBorderColor} ${
@@ -1265,14 +1234,16 @@ export default function AdminDashboard() {
                       <TableHead>Name</TableHead>
                       <TableHead>City</TableHead>
                       <TableHead>Phone</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Duration</TableHead>
+                      <TableHead>Approval Status</TableHead>
+                      <TableHead>Online Status</TableHead>
+                      <TableHead>Vehicle</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredDriverRows.map((d, idx) => {
                       const onlineSince = getDriverOnlineSince(d.id);
-                      const duration =
+                      const _duration =
                         onlineSince && d.isOnline
                           ? formatDuration(
                               Date.now() - new Date(onlineSince).getTime(),
@@ -1299,18 +1270,78 @@ export default function AdminDashboard() {
                             {d.phone}
                           </TableCell>
                           <TableCell>
-                            <StatusBadge
-                              status={d.isOnline ? "confirmed" : "rejected"}
-                            />
+                            {d.status === "approved" && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                                Approved
+                              </span>
+                            )}
+                            {d.status === "pending" && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+                                Pending
+                              </span>
+                            )}
+                            {d.status === "rejected" && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800">
+                                Rejected
+                              </span>
+                            )}
                           </TableCell>
-                          <TableCell className={`text-xs ${subtextColor}`}>
-                            {duration ? (
-                              <span className="flex items-center gap-1 text-green-500">
-                                <Timer size={12} /> {duration}
+                          <TableCell>
+                            {d.isOnline ? (
+                              <span className="flex items-center gap-1.5">
+                                <span className="relative flex h-2.5 w-2.5">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500" />
+                                </span>
+                                <span className="text-green-600 font-semibold text-xs">
+                                  Online
+                                </span>
                               </span>
                             ) : (
-                              <span>&mdash;</span>
+                              <span className="flex items-center gap-1.5">
+                                <span className="h-2.5 w-2.5 rounded-full bg-gray-300 inline-block" />
+                                <span className="text-gray-400 text-xs">
+                                  Offline
+                                </span>
+                              </span>
                             )}
+                          </TableCell>
+                          <TableCell className={`text-xs ${subtextColor}`}>
+                            {d.vehicleType}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1.5">
+                              {d.status !== "approved" && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    updateRegistrationStatus(
+                                      d.regId,
+                                      "approved",
+                                    )
+                                  }
+                                  className="px-2 py-1 text-xs bg-green-600 text-white rounded-lg hover:bg-green-500 font-medium"
+                                  data-ocid={`admin.drivers.approve.${idx + 1}`}
+                                >
+                                  Approve
+                                </button>
+                              )}
+                              {d.status !== "rejected" && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    updateRegistrationStatus(
+                                      d.regId,
+                                      "rejected",
+                                    )
+                                  }
+                                  className="px-2 py-1 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium"
+                                  data-ocid={`admin.drivers.reject.${idx + 1}`}
+                                >
+                                  Reject
+                                </button>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -2030,6 +2061,79 @@ export default function AdminDashboard() {
           {/* ── SETTINGS TAB ────────────────────────────────────────── */}
           {tab === "settings" && (
             <div className="space-y-6 max-w-2xl">
+              {/* API Configuration */}
+              <div className={`${cardBg} border rounded-xl p-6 space-y-4`}>
+                <h2 className={`font-bold text-lg ${textColor}`}>
+                  🔑 API Configuration
+                </h2>
+                <div className="space-y-3">
+                  <Label className={`text-sm font-medium ${textColor}`}>
+                    API Key
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type={showApiKey ? "text" : "password"}
+                      value={apiKeyInput}
+                      onChange={(e) => setApiKeyInput(e.target.value)}
+                      className="flex-1 font-mono text-sm"
+                      placeholder="Enter API key"
+                      data-ocid="admin.settings.input"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setShowApiKey((v) => !v)}
+                      data-ocid="admin.settings.toggle"
+                    >
+                      {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className={`text-sm font-medium ${textColor}`}>
+                    Alert Type
+                  </Label>
+                  <div className="flex gap-2 flex-wrap">
+                    {(["push", "sms", "whatsapp"] as AlertType[]).map((t) => (
+                      <button
+                        type="button"
+                        key={t}
+                        onClick={() => setAlertTypeState(t)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all ${
+                          alertTypeState === t
+                            ? "bg-green-600 text-white border-green-600"
+                            : `${cardBg} border-gray-300 ${textColor} hover:border-green-500`
+                        }`}
+                        data-ocid="admin.settings.toggle"
+                      >
+                        {t === "push"
+                          ? "📱 Push"
+                          : t === "sms"
+                            ? "💬 SMS"
+                            : "💬 WhatsApp"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Button
+                    onClick={saveApiConfig}
+                    className="bg-green-600 hover:bg-green-500 text-white"
+                    data-ocid="admin.settings.save_button"
+                  >
+                    Save API Config
+                  </Button>
+                  {apiConfigSaved && (
+                    <span
+                      className="text-green-600 text-sm font-medium"
+                      data-ocid="admin.settings.success_state"
+                    >
+                      ✓ Saved!
+                    </span>
+                  )}
+                </div>
+              </div>
+
               {/* Commission Manager */}
               <div className={`${cardBg} border rounded-xl p-6 space-y-4`}>
                 <h2 className={`font-bold text-lg ${textColor}`}>
@@ -2602,20 +2706,54 @@ function LiveDriversTab({
     }
   });
 
-  // Refresh status on render
+  // Local backend data for auto-refresh
+  const [localBackendRegs, setLocalBackendRegs] =
+    React.useState(backendRegistrations);
+  const [localBackendStatuses, setLocalBackendStatuses] = React.useState(
+    backendDriverStatuses,
+  );
+
   React.useEffect(() => {
-    try {
-      setDriverStatus(
-        JSON.parse(localStorage.getItem("driveease_driver_status") || "{}"),
-      );
-    } catch {
-      /* */
-    }
-  });
+    if (backendRegistrations.length > 0)
+      setLocalBackendRegs(backendRegistrations);
+    if (backendDriverStatuses.length > 0)
+      setLocalBackendStatuses(backendDriverStatuses);
+  }, [backendRegistrations, backendDriverStatuses]);
+
+  // Auto-refresh every 30 seconds
+  React.useEffect(() => {
+    const refreshFn = async () => {
+      try {
+        const [statuses, regs] = await Promise.all([
+          apiGetOnlineDrivers().catch(() => []),
+          apiGetRegistrations().catch(() => []),
+        ]);
+        if (statuses.length > 0 || regs.length > 0) {
+          if (statuses.length > 0)
+            setLocalBackendStatuses(statuses as ApiDriverStatus[]);
+          if (regs.length > 0)
+            setLocalBackendRegs(regs as typeof backendRegistrations);
+        }
+      } catch {
+        /* */
+      }
+      try {
+        setDriverStatus(
+          JSON.parse(localStorage.getItem("driveease_driver_status") || "{}"),
+        );
+      } catch {
+        /* */
+      }
+    };
+    refreshFn();
+    const interval = setInterval(refreshFn, 30000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally run once - auto-refresh fetches fresh data
 
   const allDrivers = React.useMemo(() => {
     const backendOnline = new Set<string>();
-    for (const s of backendDriverStatuses) {
+    for (const s of localBackendStatuses) {
       if (s.status === "online") {
         backendOnline.add(s.phone);
         backendOnline.add(s.driverId);
@@ -2628,13 +2766,7 @@ function LiveDriversTab({
       backendOnline.has(id) ||
       backendOnline.has(phone);
 
-    const allRegs = [...backendRegistrations];
-    const regPhones = new Set(allRegs.map((r) => r.phone));
-    for (const r of getRegistrations()) {
-      if (!regPhones.has(r.phone)) allRegs.push(r);
-    }
-
-    return allRegs
+    return localBackendRegs
       .filter((r) => r.status === "approved")
       .map((r) => ({
         id: `reg-${r.id}`,
@@ -2645,7 +2777,7 @@ function LiveDriversTab({
         lng: 73 + Math.random() * 15,
         isOnline: isOnlineCheck(String(r.id), r.phone),
       }));
-  }, [driverStatus, backendDriverStatuses, backendRegistrations]);
+  }, [driverStatus, localBackendStatuses, localBackendRegs]);
 
   const onlineDrivers = allDrivers.filter((d) => d.isOnline);
   const offlineDrivers = allDrivers.filter((d) => !d.isOnline);

@@ -9,6 +9,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import RouteMap, { type LatLng } from "../components/RouteMap";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { useNavigate, usePath } from "../router";
@@ -25,10 +26,8 @@ interface BookingRecord {
   status: string;
 }
 
-const DEFAULT_PICKUP_LAT = 28.6139;
-const DEFAULT_PICKUP_LNG = 77.209;
-const DEFAULT_DROP_LAT = 28.7041;
-const DEFAULT_DROP_LNG = 77.1025;
+const DEFAULT_PICKUP: LatLng = [28.6139, 77.209];
+const DEFAULT_DROP: LatLng = [28.7041, 77.1025];
 
 export default function TrackingPage() {
   const path = usePath();
@@ -68,13 +67,16 @@ export default function TrackingPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const pickupLat = booking?.pickupLat ?? DEFAULT_PICKUP_LAT;
-  const pickupLng = booking?.pickupLng ?? DEFAULT_PICKUP_LNG;
-  const dropLat = booking?.dropLat ?? DEFAULT_DROP_LAT;
-  const dropLng = booking?.dropLng ?? DEFAULT_DROP_LNG;
+  const pickupPos: LatLng =
+    booking?.pickupLat && booking?.pickupLng
+      ? [booking.pickupLat, booking.pickupLng]
+      : DEFAULT_PICKUP;
+  const dropPos: LatLng =
+    booking?.dropLat && booking?.dropLng
+      ? [booking.dropLat, booking.dropLng]
+      : DEFAULT_DROP;
 
-  const gmapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${pickupLat},${pickupLng}&destination=${dropLat},${dropLng}&travelmode=driving`;
-  const mapEmbedUrl = `https://www.google.com/maps/embed/v1/directions?key=AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY&origin=${pickupLat},${pickupLng}&destination=${dropLat},${dropLng}&mode=driving`;
+  const gmapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${pickupPos[0]},${pickupPos[1]}&destination=${dropPos[0]},${dropPos[1]}&travelmode=driving`;
 
   const sosNumbers = [
     { label: "Emergency / Police", number: "112", icon: "🚨" },
@@ -96,7 +98,6 @@ export default function TrackingPage() {
           <h1 className="font-bold text-lg">Track Your Ride</h1>
           <p className="text-green-200 text-xs">Booking #{bookingId}</p>
         </div>
-        {/* SOS Button */}
         <button
           type="button"
           onClick={() => setSosOpen(true)}
@@ -145,18 +146,8 @@ export default function TrackingPage() {
         </div>
       </div>
 
-      {/* Map */}
-      <div style={{ height: "420px" }}>
-        <iframe
-          title="Route Map"
-          width="100%"
-          height="100%"
-          style={{ border: 0 }}
-          loading="lazy"
-          allowFullScreen
-          src={mapEmbedUrl}
-        />
-      </div>
+      {/* OpenStreetMap Route */}
+      <RouteMap pickup={pickupPos} drop={dropPos} height={420} showRoute />
 
       <div className="max-w-2xl mx-auto px-4 py-4 space-y-3">
         <div className="grid grid-cols-2 gap-3">
@@ -201,7 +192,7 @@ export default function TrackingPage() {
           className="flex items-center justify-center gap-2 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors"
         >
           <Navigation size={16} />
-          View Route on Google Maps
+          Open Route in Google Maps
         </a>
 
         <Button

@@ -7,10 +7,11 @@ import {
   Copy,
   MapPin,
   Navigation,
+  Ruler,
   Shield,
   Zap,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import MapPicker from "../components/MapPicker";
 import StatesCitiesSelect from "../components/StatesCitiesSelect";
 import { Button } from "../components/ui/button";
@@ -30,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
+import { getApiKey } from "../config/apiConfig";
 import { seedDrivers } from "../data/drivers";
 import { useActor } from "../hooks/useActor";
 import { Link, useNavigate, usePath } from "../router";
@@ -71,12 +73,40 @@ const BOOKING_TYPES: {
 
 type DriverData = (typeof seedDrivers)[0];
 
-function haversineKm(
+// AI Fare Calculation — simple, direct, per-KM
+const AI_BASE_CHARGE = 50;
+const AI_RATE_PER_KM = 12;
+
+type FareResult = {
+  base: number;
+  perKm: number;
+  total: number;
+  distKm: number;
+};
+
+function aiCalculateFare(distanceKm: number): FareResult {
+  const base = AI_BASE_CHARGE;
+  const perKm = Math.round(distanceKm * AI_RATE_PER_KM);
+  const total = base + perKm;
+  return { distKm: distanceKm, base, perKm, total };
+}
+
+async function fetchOsrmDistance(
   lat1: number,
   lon1: number,
   lat2: number,
   lon2: number,
-): number {
+): Promise<number> {
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=false`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const meters = data.routes?.[0]?.distance as number | undefined;
+    if (meters) return meters / 1000;
+  } catch {
+    /* */
+  }
+  // Haversine fallback
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
@@ -88,82 +118,20 @@ function haversineKm(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.3;
 }
 
-interface PricingConfig {
-  minFare: number;
-  baseCharge: number;
-  perKmRate: number;
-  nightSurcharge: number;
-}
-
-function getPricingConfig(): PricingConfig {
+async function geocodeAddress(
+  address: string,
+): Promise<{ lat: number; lng: number } | null> {
   try {
-    const stored = JSON.parse(
-      localStorage.getItem("driveease_pricing_config") || "{}",
-    );
-    return {
-      minFare: stored.minFare ?? 99,
-      baseCharge: stored.baseCharge ?? 50,
-      perKmRate: stored.perKmRate ?? 12,
-      nightSurcharge: stored.nightSurcharge ?? 20,
-    };
+    const url = `https://us1.locationiq.com/v1/search?key=12fe02cf73a21d19d48b1de8af073ab6&q=${encodeURIComponent(address)}&format=json&limit=1&countrycodes=in`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data?.[0]) {
+      return { lat: Number(data[0].lat), lng: Number(data[0].lon) };
+    }
   } catch {
-    return { minFare: 99, baseCharge: 50, perKmRate: 12, nightSurcharge: 20 };
+    /* */
   }
-}
-
-function calculateFare(
-  distanceKm: number,
-  config: PricingConfig,
-): {
-  base: number;
-  perKm: number;
-  subtotal: number;
-  surcharge: number;
-  total: number;
-  rate: string;
-} {
-  const hour = new Date().getHours();
-  const isNight = hour >= 22 || hour < 6;
-
-  if (distanceKm <= 5) {
-    const subtotal = 99;
-    const surchargeAmt = isNight
-      ? Math.round(subtotal * (config.nightSurcharge / 100))
-      : 0;
-    const total = Math.max(config.minFare, subtotal + surchargeAmt);
-    return {
-      base: 99,
-      perKm: 0,
-      subtotal,
-      surcharge: surchargeAmt,
-      total,
-      rate: "Flat rate (0-5km)",
-    };
-  }
-  let perKmRate: number;
-  let rateLabel: string;
-  if (distanceKm <= 20) {
-    perKmRate = config.perKmRate;
-    rateLabel = `\u20b9${config.perKmRate}/km (6-20km)`;
-  } else {
-    perKmRate = Math.max(10, config.perKmRate - 2);
-    rateLabel = `\u20b9${perKmRate}/km (20km+ discount)`;
-  }
-  const base = config.baseCharge;
-  const kmCharge = Math.round(distanceKm * perKmRate);
-  const subtotal = base + kmCharge;
-  const surchargeAmt = isNight
-    ? Math.round(subtotal * (config.nightSurcharge / 100))
-    : 0;
-  const total = Math.max(config.minFare, subtotal + surchargeAmt);
-  return {
-    base,
-    perKm: kmCharge,
-    subtotal,
-    surcharge: surchargeAmt,
-    total,
-    rate: rateLabel,
-  };
+  return null;
 }
 
 interface RegDriver {
@@ -184,10 +152,8 @@ function lookupRegDriver(regId: string): RegDriver | undefined {
     const regs: RegDriver[] = JSON.parse(
       localStorage.getItem("driveease_registrations") || "[]",
     );
-    // Try by ID first (regId is the registration ID as a string)
     const byId = regs.find((r) => String(r.id) === regId);
     if (byId) return byId;
-    // Fallback: try by phone
     return regs.find((r) => r.phone === regId);
   } catch {
     return undefined;
@@ -241,6 +207,10 @@ function maskPhone(phone: string): string {
   return `****${phone.slice(-4)}`;
 }
 
+function fmt(n: number): string {
+  return n.toLocaleString("en-IN");
+}
+
 export default function BookingPage() {
   const path = usePath();
   const navigate = useNavigate();
@@ -278,6 +248,10 @@ export default function BookingPage() {
   const [error, setError] = useState("");
   const [copied, setCopied] = useState("");
   const [loadingDriver, setLoadingDriver] = useState(isRegDriver && !driver);
+
+  // Manual KM entry state
+  const [manualKm, setManualKm] = useState<string>("");
+  const [manualFare, setManualFare] = useState<FareResult | null>(null);
 
   const storedCustomer = localStorage.getItem("otp_customer");
   const customer = storedCustomer ? JSON.parse(storedCustomer) : null;
@@ -352,19 +326,53 @@ export default function BookingPage() {
     }
   }, [actor]);
 
-  const fareEstimate = useMemo(() => {
+  // AI fare from OSRM road distance (async, stored in state)
+  const [osrmFare, setOsrmFare] = useState<FareResult | null>(null);
+  const [osrmLoading, setOsrmLoading] = useState(false);
+
+  // Calculate fare when coordinates change
+  useEffect(() => {
     if (
       pickupLat === null ||
       pickupLng === null ||
       dropLat === null ||
       dropLng === null
     ) {
-      return null;
+      setOsrmFare(null);
+      return;
     }
-    const distKm = haversineKm(pickupLat, pickupLng, dropLat, dropLng);
-    const config = getPricingConfig();
-    return { ...calculateFare(distKm, config), distKm };
+    setOsrmLoading(true);
+    fetchOsrmDistance(pickupLat, pickupLng, dropLat, dropLng).then((distKm) => {
+      setOsrmFare(aiCalculateFare(distKm));
+      setOsrmLoading(false);
+    });
   }, [pickupLat, pickupLng, dropLat, dropLng]);
+
+  // Active fare: OSRM-based takes priority, else manual KM entry
+  const activeFare: FareResult | null = osrmFare ?? manualFare;
+  // Keep fareEstimate as alias for compatibility
+  const fareEstimate = osrmFare;
+
+  const [calculatingKm, setCalculatingKm] = useState(false);
+  const handleCalculateManualFare = async () => {
+    const km = Number.parseFloat(manualKm);
+    if (km > 0) {
+      setManualFare(aiCalculateFare(km));
+      return;
+    }
+    // Try to geocode from addresses
+    if (!form.pickupAddress || !form.dropAddress) return;
+    setCalculatingKm(true);
+    const [p, d] = await Promise.all([
+      geocodeAddress(form.pickupAddress),
+      geocodeAddress(form.dropAddress),
+    ]);
+    if (p && d) {
+      const distKm = await fetchOsrmDistance(p.lat, p.lng, d.lat, d.lng);
+      setManualFare(aiCalculateFare(distKm));
+    }
+    setCalculatingKm(false);
+  };
 
   const getDays = () => {
     if (!form.startDate || !form.endDate) return 0;
@@ -386,7 +394,12 @@ export default function BookingPage() {
     bookingType === "daily"
       ? pricePerDay
       : Math.round(pricePerDay * typeMultiplier);
-  const total = days * effectivePrice + (form.insurance ? 99 : 0);
+
+  // Unified total: use activeFare per trip * days + insurance
+  const insuranceAmount = form.insurance ? 99 : 0;
+  const activeFareTotal = activeFare ? activeFare.total : effectivePrice;
+  const total =
+    days > 0 ? activeFareTotal * days + insuranceAmount : insuranceAmount;
 
   const copyText = (text: string, key: string) => {
     navigator.clipboard.writeText(text).catch(() => {});
@@ -592,7 +605,7 @@ export default function BookingPage() {
                 Driver <strong>{driver.name}</strong> will contact you shortly.
               </p>
               <p className="text-xs text-gray-400 mb-2">
-                🕒 Booked at: <strong>{bookingIST}</strong>
+                \ud83d\udd52 Booked at: <strong>{bookingIST}</strong>
               </p>
               <div className="inline-flex items-center gap-2 bg-green-100 text-green-700 rounded-full px-4 py-1.5 text-sm font-semibold mb-4">
                 {bookingType === "hourly" ? (
@@ -690,10 +703,18 @@ export default function BookingPage() {
                     {form.dropAddress}
                   </span>
                 </div>
+                {activeFare && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Distance</span>
+                    <span className="font-medium">
+                      {activeFare.distKm.toFixed(1)} km
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between border-t border-gray-100 pt-2 mt-1">
                   <span className="font-bold text-gray-900">Total</span>
                   <span className="font-bold text-green-700">
-                    \u20b9{total.toLocaleString()}
+                    \u20b9{fmt(total)}
                   </span>
                 </div>
               </div>
@@ -704,9 +725,7 @@ export default function BookingPage() {
           <button
             type="button"
             onClick={() => {
-              const insuranceAmount = form.insurance ? 99 : 0;
-              const baseFare = total - insuranceAmount;
-              const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><title>Receipt - DriveEase #${bookingId}</title><style>body{font-family:Arial,sans-serif;padding:32px;color:#1a1a1a}.header{background:#14532d;color:white;padding:24px;border-radius:8px;margin-bottom:24px}.logo{font-size:24px;font-weight:900}.row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:14px}.label{color:#6b7280}.value{font-weight:600}.total-row{border-top:2px solid #14532d;padding-top:12px;font-size:16px;font-weight:700;display:flex;justify-content:space-between}.footer{text-align:center;margin-top:32px;color:#6b7280;font-size:12px;border-top:1px solid #e5e7eb;padding-top:16px}</style></head><body><div class="header"><div class="logo">DriveEase</div><div style="font-size:13px;opacity:0.8;margin-top:4px">Personal Driver Network — Booking Receipt</div><div style="font-size:17px;font-weight:700;margin-top:6px">Booking ID: #${bookingId}</div></div><div class="row"><span class="label">Customer</span><span class="value">${form.customerName}</span></div><div class="row"><span class="label">Phone</span><span class="value">${form.customerPhone}</span></div><div class="row"><span class="label">Driver</span><span class="value">${driver.name}</span></div><div class="row"><span class="label">Driver Phone</span><span class="value">${maskPhone(driverPhone)}</span></div>${driverVehicle ? `<div class="row"><span class="label">Vehicle</span><span class="value">${driverVehicle}</span></div>` : ""}<div class="row"><span class="label">City</span><span class="value">${driver.city}</span></div><div class="row"><span class="label">Pickup</span><span class="value">${form.pickupAddress}</span></div><div class="row"><span class="label">Drop</span><span class="value">${form.dropAddress}</span></div><div class="row"><span class="label">Start Date</span><span class="value">${form.startDate}</span></div><div class="row"><span class="label">End Date</span><span class="value">${form.endDate}</span></div><div class="row"><span class="label">Booking Type</span><span class="value">${bookingType}</span></div><div class="row"><span class="label">Base Fare</span><span class="value">₹${baseFare.toLocaleString("en-IN")}</span></div>${insuranceAmount > 0 ? `<div class="row"><span class="label">Insurance</span><span class="value">₹99</span></div>` : ""}<div class="total-row"><span>Total Amount</span><span style="color:#14532d">₹${total.toLocaleString("en-IN")}</span></div><div class="footer"><p>Thank you for choosing DriveEase<br/>For support: +91-7836887228</p></div><script>window.onload=function(){window.print()}<\/script></body></html>`;
+              const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><title>Receipt - DriveEase #${bookingId}</title><style>body{font-family:Arial,sans-serif;padding:32px;color:#1a1a1a}.header{background:#14532d;color:white;padding:24px;border-radius:8px;margin-bottom:24px}.logo{font-size:24px;font-weight:900}.row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:14px}.label{color:#6b7280}.value{font-weight:600}.total-row{border-top:2px solid #14532d;padding-top:12px;font-size:16px;font-weight:700;display:flex;justify-content:space-between}.footer{text-align:center;margin-top:32px;color:#6b7280;font-size:12px;border-top:1px solid #e5e7eb;padding-top:16px}</style></head><body><div class="header"><div class="logo">DriveEase</div><div style="font-size:13px;opacity:0.8;margin-top:4px">Personal Driver Network — Booking Receipt</div><div style="font-size:17px;font-weight:700;margin-top:6px">Booking ID: #${bookingId}</div></div><div class="row"><span class="label">Customer</span><span class="value">${form.customerName}</span></div><div class="row"><span class="label">Phone</span><span class="value">${form.customerPhone}</span></div><div class="row"><span class="label">Driver</span><span class="value">${driver.name}</span></div><div class="row"><span class="label">Driver Phone</span><span class="value">${maskPhone(driverPhone)}</span></div>${driverVehicle ? `<div class="row"><span class="label">Vehicle</span><span class="value">${driverVehicle}</span></div>` : ""}<div class="row"><span class="label">City</span><span class="value">${driver.city}</span></div><div class="row"><span class="label">Pickup</span><span class="value">${form.pickupAddress}</span></div><div class="row"><span class="label">Drop</span><span class="value">${form.dropAddress}</span></div><div class="row"><span class="label">Start Date</span><span class="value">${form.startDate}</span></div><div class="row"><span class="label">End Date</span><span class="value">${form.endDate}</span></div><div class="row"><span class="label">Booking Type</span><span class="value">${bookingType}</span></div>${activeFare ? `<div class="row"><span class="label">Distance</span><span class="value">${activeFare.distKm.toFixed(1)} km</span></div><div class="row"><span class="label">Fare per trip</span><span class="value">\u20b9${fmt(activeFare.total)}</span></div>` : `<div class="row"><span class="label">Rate</span><span class="value">\u20b9${fmt(effectivePrice)}/day</span></div>`}<div class="row"><span class="label">Days</span><span class="value">${days}</span></div>${insuranceAmount > 0 ? `<div class="row"><span class="label">Insurance</span><span class="value">\u20b999</span></div>` : ""}<div class="total-row"><span>Total Amount</span><span style="color:#14532d">\u20b9${fmt(total)}</span></div><div class="footer"><p>Thank you for choosing DriveEase<br/>For support: +91-7836887228</p></div><script>window.onload=function(){window.print()}<\/script></body></html>`;
               const blob = new Blob([html], { type: "text/html" });
               const url = URL.createObjectURL(blob);
               const w = window.open(url, "_blank");
@@ -735,7 +754,7 @@ export default function BookingPage() {
               <p className="text-sm text-gray-500">
                 Total Amount:{" "}
                 <span className="font-bold text-green-700">
-                  \u20b9{total.toLocaleString()}
+                  \u20b9{fmt(total)}
                 </span>
               </p>
             </CardHeader>
@@ -851,7 +870,8 @@ export default function BookingPage() {
             Book {driver.name}
           </h1>
           <p className="text-gray-500 text-sm">
-            {driver.city}, {driver.state} \u00b7 \u20b9{driver.pricePerDay}/day
+            {driver.city}, {driver.state} \u00b7 \u20b9{fmt(driver.pricePerDay)}
+            /day
           </p>
           {isSameCityDriver && (
             <div className="inline-flex items-center gap-1.5 mt-2 bg-green-50 border border-green-200 text-green-700 rounded-full px-3 py-1 text-sm">
@@ -877,7 +897,7 @@ export default function BookingPage() {
                     ? "border-green-600 bg-green-50 shadow-sm"
                     : "border-gray-200 bg-white hover:border-green-300"
                 }`}
-                data-ocid={`booking.toggle.${t.id}`}
+                data-ocid={"booking.toggle"}
               >
                 <span className="text-2xl mb-1">{t.icon}</span>
                 <span
@@ -994,7 +1014,7 @@ export default function BookingPage() {
                         async (pos) => {
                           try {
                             const res = await fetch(
-                              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`,
+                              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&key=${getApiKey()}`,
                             );
                             const data = await res.json();
                             const addr = data.display_name || "";
@@ -1016,7 +1036,9 @@ export default function BookingPage() {
                     className="text-xs text-green-600 hover:text-green-700 flex items-center gap-1 underline"
                     data-ocid="booking.toggle"
                   >
-                    {detectingPickup ? "Detecting..." : "📍 Use My Location"}
+                    {detectingPickup
+                      ? "Detecting..."
+                      : "\ud83d\udccd Use My Location"}
                   </button>
                 </div>
                 <Input
@@ -1100,63 +1122,141 @@ export default function BookingPage() {
             </CardContent>
           </Card>
 
-          {/* Fare Estimator */}
-          <Card className="border-2 border-dashed border-green-200 bg-gradient-to-br from-green-50 to-emerald-50">
+          {/* AI Fare Calculator — Calculate by KM */}
+          <Card className="border-2 border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-md">
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
-                <Zap size={16} className="text-green-600" />
-                Fare Estimate
+                <Ruler size={16} className="text-green-600" />
+                \ud83d\udccf AI Fare Calculator
               </CardTitle>
+              <p className="text-sm text-gray-500 mt-0.5">
+                Don&apos;t know exact distance? Enter approximate kilometers to
+                calculate fare instantly.
+              </p>
             </CardHeader>
             <CardContent>
-              {fareEstimate ? (
-                <div className="space-y-2">
+              <div className="flex gap-3 items-end">
+                <div className="flex-1">
+                  <Label htmlFor="manual-km" className="text-sm font-medium">
+                    Enter KM (or leave blank to auto-detect from addresses)
+                  </Label>
+                  <Input
+                    id="manual-km"
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    value={manualKm}
+                    onChange={(e) => {
+                      setManualKm(e.target.value);
+                      setManualFare(null);
+                    }}
+                    placeholder="e.g. 15"
+                    className="mt-1 text-base"
+                    data-ocid="booking.input"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  onClick={handleCalculateManualFare}
+                  disabled={calculatingKm}
+                  className="bg-green-600 hover:bg-green-700 text-white font-bold px-5 py-2.5 h-11 shrink-0 text-sm shadow-md shadow-green-900/30"
+                  data-ocid="booking.primary_button"
+                >
+                  {calculatingKm ? "Calculating..." : "Calculate by KM"}
+                </Button>
+              </div>
+
+              {manualFare && (
+                <div className="mt-4 bg-white border-2 border-green-300 rounded-xl p-4 space-y-2 shadow-sm">
+                  <p className="text-xs font-bold text-green-700 uppercase tracking-wide mb-2">
+                    AI Fare Breakdown
+                  </p>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Distance (road)</span>
-                    <span className="font-medium">
-                      {fareEstimate.distKm.toFixed(1)} km
+                    <span className="text-gray-600">Distance</span>
+                    <span className="font-bold text-gray-900">
+                      {manualFare.distKm.toFixed(1)} km
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Rate</span>
-                    <span className="font-medium">{fareEstimate.rate}</span>
+                    <span className="font-bold text-gray-900">₹12/km</span>
                   </div>
-                  {fareEstimate.base > 0 && fareEstimate.perKm > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Base + per-km</span>
-                      <span className="font-medium">
-                        \u20b9{fareEstimate.base} + \u20b9{fareEstimate.perKm}
-                      </span>
-                    </div>
-                  )}
-                  {fareEstimate.surcharge > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-amber-700">
-                        \ud83c\udf19 Night surcharge
-                      </span>
-                      <span className="font-medium text-amber-700">
-                        +\u20b9{fareEstimate.surcharge}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex justify-between font-bold text-base border-t border-green-200 pt-2 mt-1">
-                    <span className="text-green-800">Estimated Fare</span>
-                    <span className="text-green-700 text-lg">
-                      \u20b9{fareEstimate.total}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Base charge</span>
+                    <span className="font-bold text-gray-900">₹50</span>
+                  </div>
+                  <div className="flex justify-between items-center border-t-2 border-green-400 pt-3 mt-2">
+                    <span className="font-bold text-gray-900 text-base">
+                      Total Amount
+                    </span>
+                    <span className="text-green-600 text-3xl font-black tabular-nums">
+                      ₹{fmt(manualFare.total)}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">
-                    * Estimate based on road distance. Final amount may vary.
+                  <p className="text-xs text-gray-400">
+                    ✓ This fare is applied to your booking.
                   </p>
                 </div>
-              ) : (
-                <p className="text-sm text-gray-400 text-center py-2">
-                  Pin both pickup and drop locations on the map to see fare
-                  estimate
+              )}
+
+              {!manualFare && fareEstimate === null && (
+                <p className="text-xs text-gray-400 mt-2">
+                  Enter KM or pin pickup &amp; drop on the map for
+                  auto-detection.
                 </p>
               )}
             </CardContent>
           </Card>
+
+          {/* AI Auto-Fare from Map Coordinates */}
+          {(fareEstimate || osrmLoading) && (
+            <Card className="border-2 border-green-500 bg-white shadow-lg">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Zap size={16} className="text-green-600" />
+                  AI Route Fare — Live Calculation
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {osrmLoading ? (
+                  <div className="flex items-center gap-2 py-2">
+                    <div className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-sm text-gray-500">
+                      Calculating route distance...
+                    </span>
+                  </div>
+                ) : fareEstimate ? (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Distance (road)</span>
+                      <span className="font-bold text-gray-900">
+                        {fareEstimate.distKm.toFixed(1)} km
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Rate</span>
+                      <span className="font-bold text-gray-900">₹12/km</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Base charge</span>
+                      <span className="font-bold text-gray-900">₹50</span>
+                    </div>
+                    <div className="flex justify-between items-center border-t-2 border-green-500 pt-3 mt-2">
+                      <span className="font-bold text-gray-900 text-base">
+                        Total Fare
+                      </span>
+                      <span className="text-green-600 text-3xl font-black tabular-nums">
+                        ₹{fmt(fareEstimate.total)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      ✓ Auto-calculated from your route.
+                    </p>
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Dates */}
           <Card>
@@ -1225,34 +1325,86 @@ export default function BookingPage() {
             </CardContent>
           </Card>
 
-          {/* Summary */}
+          {/* Booking Summary */}
           {days > 0 && (
-            <Card className="bg-green-50 border-green-200">
-              <CardContent className="pt-4">
-                <div className="flex justify-between text-sm text-gray-600 mb-1">
-                  <span className="font-medium text-green-800">
-                    {BOOKING_TYPES.find((t) => t.id === bookingType)?.label}{" "}
-                    \u00b7{" "}
-                    {BOOKING_TYPES.find((t) => t.id === bookingType)?.rate}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm text-gray-600 mb-1">
-                  <span>
-                    \u20b9{effectivePrice}/day \u00d7 {days} days
-                  </span>
-                  <span>\u20b9{days * effectivePrice}</span>
-                </div>
-                {form.insurance && (
-                  <div className="flex justify-between text-sm text-gray-600 mb-1">
-                    <span>Insurance</span>
-                    <span>\u20b999</span>
+            <Card className="bg-green-50 border-green-200 shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold text-green-800 uppercase tracking-wide">
+                  \ud83d\udcca Booking Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-2 text-sm">
+                  {/* Booking type header */}
+                  <div className="flex justify-between text-gray-600">
+                    <span className="font-medium">
+                      {BOOKING_TYPES.find((t) => t.id === bookingType)?.label}{" "}
+                      Booking
+                    </span>
+                    <span className="text-gray-400">
+                      {BOOKING_TYPES.find((t) => t.id === bookingType)?.rate}
+                    </span>
                   </div>
-                )}
-                <div className="flex justify-between font-bold text-gray-900 border-t border-green-200 pt-2 mt-2">
-                  <span>Total</span>
-                  <span className="text-green-700">
-                    \u20b9{total.toLocaleString()}
-                  </span>
+
+                  {activeFare ? (
+                    <>
+                      {/* Distance-based fare breakdown */}
+                      <div className="flex justify-between text-gray-600">
+                        <span>Distance</span>
+                        <span className="font-medium">
+                          {activeFare.distKm.toFixed(1)} km
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-gray-600">
+                        <span>Fare per trip</span>
+                        <span className="font-medium">
+                          \u20b9{fmt(activeFare.total)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-gray-600">
+                        <span>
+                          \u00d7 {days} {days === 1 ? "day" : "days"}
+                        </span>
+                        <span className="font-medium">
+                          \u20b9{fmt(activeFare.total * days)}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex justify-between text-gray-600">
+                      <span>
+                        \u20b9{fmt(effectivePrice)}/day \u00d7 {days}{" "}
+                        {days === 1 ? "day" : "days"}
+                      </span>
+                      <span className="font-medium">
+                        \u20b9{fmt(effectivePrice * days)}
+                      </span>
+                    </div>
+                  )}
+
+                  {form.insurance && (
+                    <div className="flex justify-between text-gray-600">
+                      <span>\ud83d\udee1\ufe0f Insurance</span>
+                      <span className="font-medium">\u20b999</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between font-bold text-base border-t border-green-300 pt-2 mt-1">
+                    <span className="text-gray-900">Total Amount</span>
+                    <span className="text-green-700 text-2xl font-black tabular-nums">
+                      \u20b9{fmt(total)}
+                    </span>
+                  </div>
+
+                  {activeFare && (
+                    <p className="text-xs text-gray-400">
+                      * Fare calculated from{" "}
+                      {activeFare === fareEstimate
+                        ? "map pin distance"
+                        : "manually entered distance"}
+                      .
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -1281,7 +1433,7 @@ export default function BookingPage() {
           >
             {loading
               ? "Processing..."
-              : `Confirm Booking \u2014 \u20b9${total.toLocaleString()}`}
+              : `Confirm Booking \u2014 \u20b9${fmt(total)}`}
           </Button>
         </form>
       </div>

@@ -1,4 +1,4 @@
-import { ArrowLeft, LogOut, Phone, User } from "lucide-react";
+import { ArrowLeft, CheckCircle, LogOut, Phone, User } from "lucide-react";
 import { useState } from "react";
 import { Button } from "../components/ui/button";
 import {
@@ -14,7 +14,7 @@ import { useNavigate } from "../router";
 import { apiSaveOtpLogin } from "../utils/backendApi";
 import { saveOtpLogin } from "../utils/localStore";
 
-type Step = "phone" | "otp";
+type Step = "phone" | "otp" | "success";
 
 export default function OtpLoginPage() {
   const navigate = useNavigate();
@@ -95,7 +95,7 @@ export default function OtpLoginPage() {
       return;
     }
     setLoading(true);
-    // Record login non-blocking — never block the user from logging in
+    // Record login non-blocking
     if (actor) actor.recordOtpLogin(phone, name).catch(() => {});
     apiSaveOtpLogin(name, phone, new Date().toISOString()).catch(() => {});
     saveOtpLogin({
@@ -109,7 +109,11 @@ export default function OtpLoginPage() {
       JSON.stringify({ name, phone, loggedIn: true }),
     );
     setLoading(false);
-    navigate("/drivers");
+    // Show success step, then redirect after 3 seconds
+    setStep("success");
+    setTimeout(() => {
+      navigate("/drivers");
+    }, 3000);
   };
 
   return (
@@ -131,17 +135,52 @@ export default function OtpLoginPage() {
               </button>
             )}
             <CardTitle className="text-gray-900">
-              {step === "phone" ? "Customer Login" : "Verify OTP"}
+              {step === "phone"
+                ? "Customer Login"
+                : step === "otp"
+                  ? "Verify OTP"
+                  : "Login Successful!"}
             </CardTitle>
           </div>
           <p className="text-sm text-gray-500 mt-1">
             {step === "phone"
               ? "Login to book a trusted driver for your family"
-              : "Enter the OTP shown below"}
+              : step === "otp"
+                ? "Enter the OTP shown below"
+                : ""}
           </p>
         </CardHeader>
 
         <CardContent>
+          {/* Success Step */}
+          {step === "success" && (
+            <div
+              className="flex flex-col items-center gap-4 py-4"
+              data-ocid="login.success_state"
+            >
+              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
+                <CheckCircle className="text-green-600" size={44} />
+              </div>
+              <div className="text-center">
+                <p className="text-xl font-bold text-green-700">
+                  Login Successful!
+                </p>
+                <p className="text-gray-600 mt-1">
+                  Welcome back,{" "}
+                  <span className="font-semibold text-gray-900">{name}</span>!
+                </p>
+                <p className="text-sm text-gray-400 mt-2">
+                  Redirecting to drivers in 3 seconds...
+                </p>
+              </div>
+              <div className="w-full bg-green-50 border border-green-200 rounded-xl p-3 text-center">
+                <p className="text-green-700 text-sm font-medium">
+                  ✔ You are now logged in. Find your perfect driver!
+                </p>
+              </div>
+            </div>
+          )}
+
           {step === "phone" && (
             <form onSubmit={handleSendOtp} className="space-y-4">
               <div>
@@ -201,10 +240,7 @@ export default function OtpLoginPage() {
             <form onSubmit={handleVerifyOtp} className="space-y-4">
               <div className="bg-green-50 border border-green-200 rounded-xl p-5 text-center">
                 <p className="text-gray-500 text-sm mb-1">Your OTP is</p>
-                <p
-                  className="text-4xl font-black text-green-600 tracking-widest"
-                  data-ocid="login.success_state"
-                >
+                <p className="text-4xl font-black text-green-600 tracking-widest">
                   {generatedOtp}
                 </p>
                 <p className="text-xs text-gray-400 mt-2">

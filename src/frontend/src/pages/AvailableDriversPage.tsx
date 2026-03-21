@@ -1,10 +1,9 @@
-import { Car, MapPin, RefreshCw, Star } from "lucide-react";
+import { Car, Copy, MapPin, RefreshCw, Star } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Link } from "../router";
 import { apiGetOnlineDrivers, apiGetRegistrations } from "../utils/backendApi";
-import { getRegistrations } from "../utils/localStore";
 
 interface DriverCard {
   id: number;
@@ -22,63 +21,55 @@ async function fetchApprovedDrivers(): Promise<DriverCard[]> {
     apiGetOnlineDrivers().catch(() => []),
   ]);
 
-  const localRegs = getRegistrations();
-
-  const all = [...backendRegs];
-  const phones = new Set(all.map((r) => r.phone));
-  for (const r of localRegs) {
-    if (!phones.has(r.phone)) all.push(r as any);
-  }
-
   const onlinePhones = new Set(
     onlineDrivers.filter((d) => d.status === "online").map((d) => d.phone),
   );
-  try {
-    const localStatusMap = JSON.parse(
-      localStorage.getItem("driveease_driver_status") || "{}",
-    );
-    for (const [key, val] of Object.entries(localStatusMap)) {
-      if (val === "online") onlinePhones.add(key);
-    }
-    const legacyMap = JSON.parse(
-      localStorage.getItem("driveease_driver_statuses") || "{}",
-    );
-    for (const [key, val] of Object.entries(legacyMap)) {
-      if (val === "online") onlinePhones.add(key);
-    }
-  } catch {
-    /* ignore */
-  }
 
-  let feedback: Array<{ driverName: string; rating: number }> = [];
-  try {
-    feedback = JSON.parse(localStorage.getItem("driveease_feedback") || "[]");
-  } catch {
-    /* ignore */
-  }
+  const approved = backendRegs.filter((r) => r.status === "approved");
 
-  const approved = all.filter((r) => r.status === "approved");
-
-  return approved.map((d) => {
-    const driverFeedback = feedback.filter((f) => f.driverName === d.name);
-    const avgRating =
-      driverFeedback.length > 0
-        ? (
-            driverFeedback.reduce((sum, f) => sum + f.rating, 0) /
-            driverFeedback.length
-          ).toFixed(1)
-        : "5.0";
-    const isOnline = onlinePhones.has(d.phone);
-    return {
+  return approved
+    .map((d) => ({
       id: d.id,
       name: d.name,
       phone: d.phone,
       vehicleType: d.vehicleType || "",
       city: d.city || "",
-      avgRating,
-      isOnline,
-    };
-  });
+      avgRating: "5.0",
+      isOnline: onlinePhones.has(d.phone),
+    }))
+    .sort((a, b) => Number(b.isOnline) - Number(a.isOnline));
+}
+
+function ShareButton() {
+  const [copied, setCopied] = useState(false);
+  const copyLink = () => {
+    const url = `${window.location.origin}${window.location.pathname}#/available-drivers`;
+    navigator.clipboard.writeText(url).catch(() => {
+      const el = document.createElement("input");
+      el.value = url;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+    });
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
+  return (
+    <button
+      type="button"
+      onClick={copyLink}
+      className={`flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg border transition-all ${
+        copied
+          ? "bg-green-100 border-green-300 text-green-700"
+          : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+      }`}
+      data-ocid="available_drivers.share_button"
+    >
+      <Copy size={14} />
+      {copied ? "Link Copied!" : "Share Page"}
+    </button>
+  );
 }
 
 export default function AvailableDriversPage() {
@@ -105,7 +96,7 @@ export default function AvailableDriversPage() {
   return (
     <div className="min-h-screen bg-white py-8 px-4">
       <div className="max-w-5xl mx-auto">
-        <div className="mb-8 flex items-start justify-between">
+        <div className="mb-8 flex items-start justify-between gap-3 flex-wrap">
           <div>
             <h1
               className="text-3xl font-bold text-gray-900"
@@ -117,19 +108,21 @@ export default function AvailableDriversPage() {
               Find and book a verified personal driver near you
             </p>
           </div>
-          <button
-            type="button"
-            onClick={load}
-            disabled={loading}
-            className="flex items-center gap-2 px-3 py-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50"
-            data-ocid="available_drivers.button"
-          >
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-            {loading ? "Loading..." : "Refresh"}
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <ShareButton />
+            <button
+              type="button"
+              onClick={load}
+              disabled={loading}
+              className="flex items-center gap-2 px-3 py-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50"
+              data-ocid="available_drivers.button"
+            >
+              <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+              {loading ? "Loading..." : "Refresh"}
+            </button>
+          </div>
         </div>
 
-        {/* Filter Tabs */}
         <div className="flex gap-3 mb-6">
           <button
             type="button"
@@ -194,8 +187,15 @@ export default function AvailableDriversPage() {
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-green-400 to-green-700 flex items-center justify-center text-white font-bold text-xl">
-                      {driver.name?.charAt(0)?.toUpperCase() || "D"}
+                    <div className="relative">
+                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-green-400 to-green-700 flex items-center justify-center text-white font-bold text-xl">
+                        {driver.name?.charAt(0)?.toUpperCase() || "D"}
+                      </div>
+                      <span
+                        className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-white ${
+                          driver.isOnline ? "bg-green-500" : "bg-gray-400"
+                        }`}
+                      />
                     </div>
                     <div>
                       <h3 className="font-bold text-gray-900 text-base">
@@ -235,7 +235,7 @@ export default function AvailableDriversPage() {
                 </div>
 
                 <Link
-                  to={`/drivers?driver=${encodeURIComponent(driver.name)}&vehicle=${encodeURIComponent(driver.vehicleType || "")}&city=${encodeURIComponent(driver.city || "")}`}
+                  to={`/book/available-${driver.id}?name=${encodeURIComponent(driver.name)}&vehicle=${encodeURIComponent(driver.vehicleType || "")}&city=${encodeURIComponent(driver.city || "")}`}
                 >
                   <Button
                     className="w-full bg-green-600 hover:bg-green-500 text-white font-semibold rounded-xl"

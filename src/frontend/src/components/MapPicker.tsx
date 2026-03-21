@@ -1,4 +1,8 @@
 import { useCallback, useEffect, useId, useRef } from "react";
+import {
+  LOCATIONIQ_REVERSE_URL,
+  LOCATIONIQ_TILE_URL,
+} from "../config/apiConfig";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 
@@ -49,14 +53,23 @@ export default function MapPicker({
 
   const reverseGeocode = useCallback(async (lt: number, ln: number) => {
     try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lt}&lon=${ln}`,
-      );
+      const res = await fetch(`${LOCATIONIQ_REVERSE_URL}&lat=${lt}&lon=${ln}`);
       const data = await res.json();
       const address = data.display_name || `${lt.toFixed(5)}, ${ln.toFixed(5)}`;
       onChangeRef.current(address, lt, ln);
     } catch {
-      onChangeRef.current(`${lt.toFixed(5)}, ${ln.toFixed(5)}`, lt, ln);
+      // Fallback to OSM Nominatim
+      try {
+        const res2 = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lt}&lon=${ln}`,
+        );
+        const data2 = await res2.json();
+        const address2 =
+          data2.display_name || `${lt.toFixed(5)}, ${ln.toFixed(5)}`;
+        onChangeRef.current(address2, lt, ln);
+      } catch {
+        onChangeRef.current(`${lt.toFixed(5)}, ${ln.toFixed(5)}`, lt, ln);
+      }
     }
   }, []);
 
@@ -70,9 +83,21 @@ export default function MapPicker({
       const map = L.map(mapRef.current).setView([startLat, startLng], 12);
       mapInstanceRef.current = map;
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "\u00a9 OpenStreetMap contributors",
-      }).addTo(map);
+      // Use LocationIQ tiles with OSM fallback
+      let tileAdded = false;
+      try {
+        L.tileLayer(LOCATIONIQ_TILE_URL, {
+          attribution: '&copy; <a href="https://locationiq.com">LocationIQ</a>',
+        }).addTo(map);
+        tileAdded = true;
+      } catch {
+        /* */
+      }
+      if (!tileAdded) {
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "© OpenStreetMap contributors",
+        }).addTo(map);
+      }
 
       const marker = L.marker([startLat, startLng], {
         draggable: true,

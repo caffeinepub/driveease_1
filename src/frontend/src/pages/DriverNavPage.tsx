@@ -7,6 +7,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import RouteMap, { type LatLng } from "../components/RouteMap";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -16,13 +17,12 @@ import {
 } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import { getApiKey } from "../config/apiConfig";
 import { useNavigate } from "../router";
-
-type LatLng = [number, number];
 
 async function geocodeAddress(address: string): Promise<LatLng | null> {
   try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=in&limit=1`;
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=in&limit=1&key=${getApiKey()}`;
     const res = await fetch(url, { headers: { "Accept-Language": "en" } });
     const data = await res.json();
     if (data[0])
@@ -35,7 +35,7 @@ async function geocodeAddress(address: string): Promise<LatLng | null> {
 
 async function fetchRouteSteps(from: LatLng, to: LatLng): Promise<string[]> {
   try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=false&steps=true`;
+    const url = `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=false&steps=true&key=${getApiKey()}`;
     const res = await fetch(url);
     const data = await res.json();
     const route = data.routes?.[0];
@@ -123,13 +123,10 @@ export default function DriverNavPage() {
     ? `https://www.google.com/maps/dir/?api=1&destination=${activePos[0]},${activePos[1]}&travelmode=driving`
     : "https://maps.google.com";
 
-  // Build map embed URL based on available data
-  const mapEmbedUrl =
-    pickupPos && dropPos
-      ? `https://www.google.com/maps/embed/v1/directions?key=AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY&origin=${pickupPos[0]},${pickupPos[1]}&destination=${dropPos[0]},${dropPos[1]}&mode=driving`
-      : driverPos
-        ? `https://www.google.com/maps/embed/v1/view?key=AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY&center=${driverPos[0]},${driverPos[1]}&zoom=14`
-        : "https://www.google.com/maps/embed/v1/view?key=AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY&center=28.6139,77.209&zoom=12";
+  // Map props
+  const mapPickup: LatLng | undefined = pickupPos ?? undefined;
+  const mapDrop: LatLng | undefined = dropPos ?? undefined;
+  const mapDriver: LatLng | undefined = driverPos ?? undefined;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -204,7 +201,7 @@ export default function DriverNavPage() {
               </>
             ) : (
               <>
-                <MapPin size={16} className="mr-2" /> Load Route on Map
+                <MapPin size={16} className="mr-2" /> Show Route on Map
               </>
             )}
           </Button>
@@ -238,18 +235,14 @@ export default function DriverNavPage() {
         </div>
       </div>
 
-      {/* Map */}
-      <div style={{ height: "380px" }}>
-        <iframe
-          title="Navigation Map"
-          width="100%"
-          height="100%"
-          style={{ border: 0 }}
-          loading="lazy"
-          allowFullScreen
-          src={mapEmbedUrl}
-        />
-      </div>
+      {/* OpenStreetMap + OSRM Route */}
+      <RouteMap
+        pickup={mapPickup}
+        drop={mapDrop}
+        driver={mapDriver}
+        height={380}
+        showRoute
+      />
 
       <div className="max-w-2xl mx-auto px-4 py-4 space-y-3">
         <a
@@ -305,9 +298,9 @@ export default function DriverNavPage() {
           </Card>
         )}
 
-        {steps.length === 0 && pickupPos && (
+        {steps.length === 0 && (pickupPos || dropPos) && (
           <div className="text-center py-4 text-gray-400 text-sm">
-            Enter pickup and drop locations to see turn-by-turn directions
+            Enter both pickup and drop locations to see turn-by-turn directions
           </div>
         )}
       </div>

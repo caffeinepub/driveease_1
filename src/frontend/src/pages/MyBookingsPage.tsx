@@ -24,6 +24,7 @@ import {
   DialogTitle,
 } from "../components/ui/dialog";
 import { Textarea } from "../components/ui/textarea";
+import { getAlertType } from "../config/apiConfig";
 import { seedDrivers } from "../data/drivers";
 import { Link } from "../router";
 import { apiGetBookings } from "../utils/backendApi";
@@ -426,6 +427,17 @@ export default function MyBookingsPage() {
           <h1 className="text-2xl font-bold text-gray-900">My Ride History</h1>
           <Badge className="bg-green-100 text-green-700">
             {bookings.length} booking{bookings.length !== 1 ? "s" : ""}
+          </Badge>
+        </div>
+        {/* Alert type badge */}
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-xs text-gray-400">Notifications via:</span>
+          <Badge className="bg-blue-50 text-blue-700 text-xs">
+            {getAlertType() === "push"
+              ? "📱 Push"
+              : getAlertType() === "sms"
+                ? "💬 SMS"
+                : "💬 WhatsApp"}
           </Badge>
         </div>
         <p className="text-gray-500 text-sm mb-6">
