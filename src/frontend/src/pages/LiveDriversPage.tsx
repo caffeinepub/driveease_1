@@ -161,7 +161,7 @@ export default function LiveDriversPage() {
   }, [refresh]);
 
   useEffect(() => {
-    const autoRefresh = setInterval(() => refresh(), 30000);
+    const autoRefresh = setInterval(() => refresh(), 15000);
     return () => clearInterval(autoRefresh);
   }, [refresh]);
 

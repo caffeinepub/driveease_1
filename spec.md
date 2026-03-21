@@ -1,33 +1,42 @@
-# DriveEase
+# DriveEase - Version 40: Full API Integration + Sync Fix
 
 ## Current State
-Version 35 live. Maps use OpenStreetMap/Leaflet. Fare calculator uses tiered pricing. Admin Live Drivers tab exists but not showing data. Admin portal live button has no distinct green/white style. Driver login panel exists but map route not shown when starting a ride. OTP login sends alerts. API key `si_oUku_5_hjQmk...` used in some places.
+DriveEase is a full-stack driver booking PWA with Motoko backend and React frontend. It has: OTP customer login, driver registration/approval, live driver tracking, admin dashboard, fare calculator, LocationIQ maps, and booking/OTP flow. Admin panel has sync issues (not reflecting live driver details), and Live Drivers button shows stale data. No integrated Auth API, no AI chatbot, no blob storage for uploads, no Stripe payments, no SMS/email alert API.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Maps API key `12fe02cf73a21d19d48b1de8af073ab6` (LocationIQ format) used for:
-  - Geocoding/reverse geocoding in booking, live drivers, driver nav
-  - Route display for driver (pickup → drop) on map when ride starts
-  - OTP-based login message/alert when booking is confirmed or driver accepts
-- Driver login panel: when driver has an active/accepted booking, show full interactive map with route from pickup to drop (using LocationIQ tiles + OSRM routing)
-- AI-based billing: calculate fare directly from KM distance, show breakdown instantly (₹/km * distance = total), with a clear amount display
+- **Auth API** (authorization component): Role-based access for customers, drivers, and admin
+- **Storage API** (blob-storage component): Driver document uploads (Aadhar, DL, Selfie, payment screenshot), profile photos stored server-side so visible across all devices
+- **Payment API** (stripe component): Customer payment on ride completion; driver earnings updates; admin payout controls
+- **HTTP Outcalls** (http-outcalls component): SMS/WhatsApp alerts (via LocationIQ/messaging API), AI chatbot responses using HTTP outcalls to an AI provider
+- **AI Chatbot**: Floating chatbot button on every page; answers DriveEase questions using HTTP outcall to an AI API; powered by http-outcalls component
+- **SMS/Alert API**: OTP delivery via SMS for customer login; booking notifications to driver; alert type configurable (SMS/WhatsApp/Push) from admin settings
+- **Maps API**: LocationIQ key `12fe02cf73a21d19d48b1de8af073ab6` used everywhere – booking form, tracking, driver nav, admin live map; consistent geocoding and routing
+- **Admin Panel - Full Sync**: All tabs (Bookings, Drivers, Registrations, Customers, Enquiries, Live Drivers) pull data directly from backend canister with auto-sync; no localStorage fallback for critical data; sync status indicator always accurate
+- **Live Drivers Sync Fix**: Live Drivers page pulls approved drivers directly from backend; online/offline status refreshes every 15 seconds; BOOK NOW button works
+- **Admin API Management Panel**: New "API Integrations" section in Settings tab showing status of all 6 APIs (Auth, Maps, Payments, Storage, SMS/Alerts, AI); each with key field, status badge, and test button
 
 ### Modify
-- Admin portal "Live Drivers" tab button: change to green background, white font, black label text style
-- Admin portal Live Drivers tab: fix data loading so it actually fetches and displays live driver data from backend
-- Billing/fare calculation method: replace tiered static pricing with AI-style direct KM calculation (show per-km rate × distance = amount clearly)
-- Driver nav/login: show map route prominently when ride is active (pickup marker, drop marker, route polyline)
-- OTP login: show alert/notification message when OTP is sent and verified
+- Driver registration: uploads (Aadhar, DL, Selfie, payment screenshot) stored via blob-storage so admin can view from any device
+- Customer login: OTP can be delivered via SMS using http-outcalls (configurable)
+- Booking flow: payment step uses Stripe integration for card payments
+- Admin Settings tab: expanded to show all API keys and statuses
+- Live Drivers page: fix data fetching to always use backend canister, never localStorage
+- Admin Drivers/Registrations tabs: real-time sync from backend, not local state
 
 ### Remove
-- Nothing removed
+- localStorage-only driver data fallback for Live Drivers page
+- Stale data patterns that caused admin panel desync
 
 ## Implementation Plan
-1. Create a constants file with the new maps API key `12fe02cf73a21d19d48b1de8af073ab6`
-2. Update BookingPage: use LocationIQ for geocoding, update fare calculator to show AI-style direct KM-based amount (rate × km = total, displayed clearly)
-3. Update DriverLoginPage: when driver has accepted booking, show Leaflet map with pickup/drop route; show OTP alert notification when booking received
-4. Update DriverNavPage: use LocationIQ tiles, show full route map with markers
-5. Update LiveDriversPage: fix data fetching to always load from backend, ensure drivers display
-6. Update AdminDashboard: Live Drivers tab button → green bg, white/black text; fix Live Drivers data rendering in that tab
-7. Update OtpLoginPage: show success alert/message after OTP verification
+1. Select components: authorization, blob-storage, stripe, http-outcalls
+2. Generate updated Motoko backend with new stable data structures supporting auth roles, blob references, payment records
+3. Frontend updates:
+   a. ChatbotWidget component (floating button, slide-up panel, AI HTTP outcall)
+   b. AdminDashboard: fix all sync logic to use only backend canister; add API Integrations tab; live drivers sync fix
+   c. LiveDriversPage: fix to always fetch from backend
+   d. DriverRegistrationPage: use blob-storage for document uploads
+   e. BookingPage/PaymentPage: Stripe payment integration
+   f. OtpLoginPage: SMS OTP via http-outcalls when API key configured
+   g. Admin Settings: show all 6 API integration statuses with keys

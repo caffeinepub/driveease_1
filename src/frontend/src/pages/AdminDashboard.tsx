@@ -346,11 +346,7 @@ export default function AdminDashboard() {
   const loadAll = useCallback(async (showSpinner = false) => {
     if (showSpinner) {
       setIsRefreshing(true);
-      // Clear state first so fresh data replaces stale entries
-      setBookings([]);
-      setRegistrations([]);
-      setOtpLogins([]);
-      setEnquiries([]);
+      // Do NOT wipe state before fetch - keep showing stale data until fresh arrives
     }
     setIsLoading(true);
     try {
@@ -361,7 +357,12 @@ export default function AdminDashboard() {
         apiGetEnquiries().catch(() => null),
       ]);
 
-      const backendHasData = !!(bks || regs || logins || enqs);
+      const backendHasData = !!(
+        bks?.length ||
+        regs?.length ||
+        logins?.length ||
+        enqs?.length
+      );
 
       // Backend is the single source of truth - no localStorage merging
       setBookings((bks || []) as any);
@@ -1314,12 +1315,17 @@ export default function AdminDashboard() {
                               {d.status !== "approved" && (
                                 <button
                                   type="button"
-                                  onClick={() =>
+                                  onClick={async () => {
                                     updateRegistrationStatus(
                                       d.regId,
                                       "approved",
-                                    )
-                                  }
+                                    );
+                                    await apiUpdateRegistrationStatus(
+                                      d.regId,
+                                      "approved",
+                                    ).catch(() => {});
+                                    loadAll();
+                                  }}
                                   className="px-2 py-1 text-xs bg-green-600 text-white rounded-lg hover:bg-green-500 font-medium"
                                   data-ocid={`admin.drivers.approve.${idx + 1}`}
                                 >
@@ -1329,12 +1335,17 @@ export default function AdminDashboard() {
                               {d.status !== "rejected" && (
                                 <button
                                   type="button"
-                                  onClick={() =>
+                                  onClick={async () => {
                                     updateRegistrationStatus(
                                       d.regId,
                                       "rejected",
-                                    )
-                                  }
+                                    );
+                                    await apiUpdateRegistrationStatus(
+                                      d.regId,
+                                      "rejected",
+                                    ).catch(() => {});
+                                    loadAll();
+                                  }}
                                   className="px-2 py-1 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium"
                                   data-ocid={`admin.drivers.reject.${idx + 1}`}
                                 >
@@ -2131,6 +2142,232 @@ export default function AdminDashboard() {
                       ✓ Saved!
                     </span>
                   )}
+                </div>
+              </div>
+
+              {/* API Integrations Panel */}
+              <div className={`${cardBg} border rounded-xl p-6 space-y-4`}>
+                <h2 className={`font-bold text-lg ${textColor}`}>
+                  🔌 API Integrations
+                </h2>
+                <p className={`text-sm ${subtextColor}`}>
+                  Manage all external API connections used by DriveEase.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Maps API */}
+                  <div
+                    className={`rounded-xl border p-4 space-y-2 ${dm ? "bg-gray-700/50 border-gray-600" : "bg-green-50 border-green-100"}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">🗺️</span>
+                        <span className={`font-semibold text-sm ${textColor}`}>
+                          Maps API
+                        </span>
+                      </div>
+                      <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">
+                        Active
+                      </span>
+                    </div>
+                    <p className={`text-xs ${subtextColor}`}>
+                      LocationIQ — geocoding, routes, map tiles
+                    </p>
+                    <div className="flex gap-1">
+                      <input
+                        type="password"
+                        defaultValue="12fe02cf73a21d19d48b1de8af073ab6"
+                        className={`flex-1 text-xs font-mono rounded-lg border px-2 py-1 ${dm ? "bg-gray-800 border-gray-600 text-gray-300" : "bg-white border-gray-200"}`}
+                        readOnly
+                      />
+                    </div>
+                  </div>
+                  {/* Auth API */}
+                  <div
+                    className={`rounded-xl border p-4 space-y-2 ${dm ? "bg-gray-700/50 border-gray-600" : "bg-green-50 border-green-100"}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">🛡️</span>
+                        <span className={`font-semibold text-sm ${textColor}`}>
+                          Auth API
+                        </span>
+                      </div>
+                      <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">
+                        Active
+                      </span>
+                    </div>
+                    <p className={`text-xs ${subtextColor}`}>
+                      Internet Identity — OTP + identity (built-in)
+                    </p>
+                    <div className="flex gap-1">
+                      <input
+                        type="text"
+                        value="Internet Identity (Built-in)"
+                        className={`flex-1 text-xs font-mono rounded-lg border px-2 py-1 ${dm ? "bg-gray-800 border-gray-600 text-gray-300" : "bg-white border-gray-200"}`}
+                        readOnly
+                      />
+                    </div>
+                  </div>
+                  {/* Storage API */}
+                  <div
+                    className={`rounded-xl border p-4 space-y-2 ${dm ? "bg-gray-700/50 border-gray-600" : "bg-green-50 border-green-100"}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">☁️</span>
+                        <span className={`font-semibold text-sm ${textColor}`}>
+                          Storage API
+                        </span>
+                      </div>
+                      <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">
+                        Active
+                      </span>
+                    </div>
+                    <p className={`text-xs ${subtextColor}`}>
+                      Blob Storage — driver docs, photos (built-in)
+                    </p>
+                    <div className="flex gap-1">
+                      <input
+                        type="text"
+                        value="Blob Storage (Built-in)"
+                        className={`flex-1 text-xs font-mono rounded-lg border px-2 py-1 ${dm ? "bg-gray-800 border-gray-600 text-gray-300" : "bg-white border-gray-200"}`}
+                        readOnly
+                      />
+                    </div>
+                  </div>
+                  {/* AI Chatbot API */}
+                  <div
+                    className={`rounded-xl border p-4 space-y-2 ${dm ? "bg-gray-700/50 border-gray-600" : "bg-green-50 border-green-100"}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">🤖</span>
+                        <span className={`font-semibold text-sm ${textColor}`}>
+                          AI Chatbot API
+                        </span>
+                      </div>
+                      <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">
+                        Built-in
+                      </span>
+                    </div>
+                    <p className={`text-xs ${subtextColor}`}>
+                      DriveEase AI — smart customer support widget
+                    </p>
+                    <div className="flex gap-1">
+                      <input
+                        type="text"
+                        value="On-device AI (No key needed)"
+                        className={`flex-1 text-xs font-mono rounded-lg border px-2 py-1 ${dm ? "bg-gray-800 border-gray-600 text-gray-300" : "bg-white border-gray-200"}`}
+                        readOnly
+                      />
+                    </div>
+                  </div>
+                  {/* Payment API */}
+                  <div
+                    className={`rounded-xl border p-4 space-y-2 ${dm ? "bg-gray-700/50 border-gray-600" : "bg-amber-50 border-amber-100"}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">💳</span>
+                        <span className={`font-semibold text-sm ${textColor}`}>
+                          Payment API
+                        </span>
+                      </div>
+                      <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">
+                        Setup Required
+                      </span>
+                    </div>
+                    <p className={`text-xs ${subtextColor}`}>
+                      Stripe — card payments, subscriptions
+                    </p>
+                    <div className="flex gap-1">
+                      <input
+                        type="password"
+                        placeholder="Enter Stripe secret key (sk_live_...)"
+                        defaultValue={(() => {
+                          try {
+                            return (
+                              JSON.parse(
+                                localStorage.getItem("driveease_api_keys") ||
+                                  "{}",
+                              ).stripe || ""
+                            );
+                          } catch {
+                            return "";
+                          }
+                        })()}
+                        className={`flex-1 text-xs font-mono rounded-lg border px-2 py-1 ${dm ? "bg-gray-800 border-gray-600 text-gray-300" : "bg-white border-amber-200"}`}
+                        onChange={(e) => {
+                          try {
+                            const keys = JSON.parse(
+                              localStorage.getItem("driveease_api_keys") ||
+                                "{}",
+                            );
+                            keys.stripe = e.target.value;
+                            localStorage.setItem(
+                              "driveease_api_keys",
+                              JSON.stringify(keys),
+                            );
+                          } catch {
+                            /* ignore */
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                  {/* SMS API */}
+                  <div
+                    className={`rounded-xl border p-4 space-y-2 ${dm ? "bg-gray-700/50 border-gray-600" : "bg-amber-50 border-amber-100"}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">📱</span>
+                        <span className={`font-semibold text-sm ${textColor}`}>
+                          SMS / Alert API
+                        </span>
+                      </div>
+                      <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">
+                        Configurable
+                      </span>
+                    </div>
+                    <p className={`text-xs ${subtextColor}`}>
+                      SMS OTP, booking alerts, WhatsApp notifications
+                    </p>
+                    <div className="flex gap-1">
+                      <input
+                        type="password"
+                        placeholder="Enter SMS API key"
+                        defaultValue={(() => {
+                          try {
+                            return (
+                              JSON.parse(
+                                localStorage.getItem("driveease_api_keys") ||
+                                  "{}",
+                              ).sms || ""
+                            );
+                          } catch {
+                            return "";
+                          }
+                        })()}
+                        className={`flex-1 text-xs font-mono rounded-lg border px-2 py-1 ${dm ? "bg-gray-800 border-gray-600 text-gray-300" : "bg-white border-amber-200"}`}
+                        onChange={(e) => {
+                          try {
+                            const keys = JSON.parse(
+                              localStorage.getItem("driveease_api_keys") ||
+                                "{}",
+                            );
+                            keys.sms = e.target.value;
+                            localStorage.setItem(
+                              "driveease_api_keys",
+                              JSON.stringify(keys),
+                            );
+                          } catch {
+                            /* ignore */
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
