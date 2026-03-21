@@ -1,27 +1,41 @@
-# DriveEase
+# DriveEase Version 50
 
 ## Current State
-- Homepage has a full-screen welcome screen overlay (3.5s duration, fades out) with animated car driving, road strip, particle dots, and neon DRIVEEASE logo in Orbitron font
-- Homepage has animated racing car strip between sections, floating car widget
-- LiveDriversPage and DriverLoginPage do NOT have any car animation or welcome overlay
-- Welcome screen only appears once per session (sessionStorage flag)
+DriveEase is a full PWA driver booking app. Current theme uses orange accents (from Version 49 Ola/Rapido style). Homepage has bubble-style buttons, sparkle particles, and driver photo in a glowing bubble. Animation welcome splash exists. Driver login page exists. All pages have car sidebar and animations.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Car animation strip (same racing cars as homepage) on LiveDriversPage and DriverLoginPage — shown as a header accent or section divider at the top
-- 3D animated DriveEase logo on the welcome screen: large DRIVEEASE text using Orbitron font with 3D text-shadow layering, neon green glow, shimmer effect, and scale-in animation
-- Welcome screen duration changed from 3.5s to 4.5s (animation fade starts at 3.7s)
+- HD animated DriveEase logo image (`/assets/generated/driveease-logo-hd.dim_600x200.png`) displayed prominently on every page header/navbar area
+- Driver + car photo (`/assets/generated/driveease-driver-car.dim_800x600.png`) on homepage hero
+- Premium car photo (`/assets/generated/driveease-car-premium.dim_800x500.png`) on homepage as secondary visual
+- Sparkle/particle animation background on ALL pages (booking, plan/subscriptions, live drivers, driver login/captain login, OTP login, available drivers)
+- Animation logo on every page — animated DriveEase logo with shimmer/glow that appears in navbar or page header
+- "Captain Login" branding for the driver login page (rename Driver Login to Captain Login everywhere in UI text)
 
 ### Modify
-- Welcome screen: replace or enhance the existing logo/title with a 3D animated version — multiple stacked text-shadows to create depth, green shimmer gradient animation, scale bounce entrance
-- LiveDriversPage: add a compact animated car strip (2 cars racing) at the very top of the page content below the navbar
-- DriverLoginPage: add a compact animated car strip at the top of the page below the navbar
+- **Theme**: Remove all orange colors. Replace with deep emerald green (#059669, #10b981, #34d399) accent scheme throughout ALL pages
+- **Bubble buttons**: Remove bubble-style pulsing CTA buttons from homepage; replace with clean modern green gradient buttons
+- **Homepage hero**: Show driver+car photo and premium car photo side by side or stacked; keep sparkle background
+- **Welcome splash**: Update to green theme with HD logo
+- **Driver Login page**: Rename all "Driver Login" text to "Captain Login"; give it a premium dark green captain-themed design
+- **Every page**: Consistent green theme — no orange anywhere
+- **Color theme**: Mix each page with slightly different green shade/tint variation (booking=light green tint, live drivers=dark green, plan=mint green, captain login=deep green)
 
 ### Remove
-- Nothing removed
+- All orange color references (#f97316, orange-*, etc.)
+- Bubble pulsing CSS animation on CTA buttons
 
 ## Implementation Plan
-1. In HomePage.tsx: update welcome screen timer from 3500ms to 4500ms, update fadeOut animation delay from 3s to 3.7s; enhance the DriveEase logo section with a 3D Orbitron text with stacked shadows, shimmer gradient, and scale-bounce keyframe
-2. Extract a reusable `CarAnimationStrip` component (or inline) into a shared file `src/frontend/src/components/CarAnimationStrip.tsx` with the racing cars CSS animation
-3. Import and render `CarAnimationStrip` at the top of LiveDriversPage and DriverLoginPage
+1. Update index.css / global styles to remove orange, establish green color tokens
+2. Update Navbar to show animated HD DriveEase logo image
+3. Update WelcomeSplash in App.tsx to green theme
+4. Update HomePage: driver+car photos, remove bubble buttons, add sparkle background
+5. Update DriverLoginPage: rename to Captain Login, deep green premium theme, sparkle background
+6. Update LiveDriversPage: add sparkle background, ensure green theme
+7. Update SubscriptionsPage (Plans): add sparkle background, green theme
+8. Update BookingPage: add sparkle, green theme
+9. Update OtpLoginPage: sparkle, green theme
+10. Update AvailableDriversPage: sparkle, green theme
+11. Create shared SparkleBackground component for reuse across pages
+12. Create AnimatedLogo component showing HD logo with shimmer animation

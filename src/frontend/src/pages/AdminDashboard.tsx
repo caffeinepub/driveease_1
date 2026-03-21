@@ -93,6 +93,68 @@ import type {
   LocalRegistration,
 } from "../utils/localStore";
 
+function downloadAdminInvoice(b: {
+  id: number;
+  customerName: string;
+  customerPhone?: string;
+  driverName: string;
+  pickupAddress: string;
+  dropAddress: string;
+  startDate: string;
+  endDate?: string;
+  total: number;
+  bookingType?: string;
+  days?: number;
+  status: string;
+  insurance?: boolean;
+}) {
+  const insuranceAmount = b.insurance ? 99 : 0;
+  const baseFare = b.total - insuranceAmount;
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Invoice - DriveEase #${b.id}</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;padding:32px;color:#1a1a1a;background:#fff;}
+  .header{background:#ea580c;color:#fff;padding:24px 32px;border-radius:8px;margin-bottom:28px;}
+  .logo{font-size:26px;font-weight:900;letter-spacing:-1px;}
+  .row{display:flex;justify-content:space-between;margin-bottom:8px;font-size:14px;padding:6px 0;border-bottom:1px solid #f3f4f6;}
+  .label{color:#6b7280;}.value{font-weight:600;text-align:right;max-width:60%;}
+  .total-row{border-top:2px solid #ea580c;padding-top:12px;margin-top:8px;}
+  .total-row .value{color:#ea580c;font-size:18px;}
+  .footer{text-align:center;margin-top:36px;padding-top:16px;border-top:1px solid #e5e7eb;color:#9ca3af;font-size:12px;}
+  @media print{body{padding:0;}}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">DriveEase</div>
+  <div style="font-size:12px;opacity:0.85;margin-top:2px">Personal Driver Network — Official Invoice</div>
+  <div style="font-size:16px;font-weight:700;margin-top:6px">Booking ID: #${b.id}</div>
+</div>
+<div class="row"><span class="label">Customer</span><span class="value">${b.customerName || "—"}</span></div>
+<div class="row"><span class="label">Phone</span><span class="value">${b.customerPhone || "—"}</span></div>
+<div class="row"><span class="label">Driver</span><span class="value">${b.driverName || "—"}</span></div>
+<div class="row"><span class="label">Pickup</span><span class="value">${b.pickupAddress}</span></div>
+<div class="row"><span class="label">Drop</span><span class="value">${b.dropAddress}</span></div>
+<div class="row"><span class="label">Booking Type</span><span class="value">${b.bookingType || "Standard"}</span></div>
+<div class="row"><span class="label">Date</span><span class="value">${b.startDate}</span></div>
+${b.days ? `<div class="row"><span class="label">Duration</span><span class="value">${b.days} day(s)</span></div>` : ""}
+<div class="row"><span class="label">Status</span><span class="value">${b.status}</span></div>
+<div class="row"><span class="label">Base Fare</span><span class="value">₹${baseFare.toLocaleString("en-IN")}</span></div>
+${insuranceAmount > 0 ? `<div class="row"><span class="label">Insurance</span><span class="value">₹${insuranceAmount}</span></div>` : ""}
+<div class="row total-row"><span class="label" style="font-weight:700;color:#1a1a1a">Total Amount</span><span class="value">₹${b.total?.toLocaleString("en-IN")}</span></div>
+<div class="footer">DriveEase — India's Personal Driver Network | +91-7836887228 | Krishnalivekeeping01@gmail.com</div>
+<script>window.onload=function(){window.print();}</script>
+</body>
+</html>`;
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  const w = window.open(url, "_blank");
+  if (w) w.onafterprint = () => URL.revokeObjectURL(url);
+}
+
 type Tab =
   | "bookings"
   | "drivers"
@@ -311,6 +373,8 @@ export default function AdminDashboard() {
   // Filters
   const [bookingSearch, setBookingSearch] = useState("");
   const [bookingDateFilter, setBookingDateFilter] = useState("");
+  const [bookingDriverSearch, setBookingDriverSearch] = useState("");
+  const [bookingIdSearch, setBookingIdSearch] = useState("");
   const [driverNameFilter, setDriverNameFilter] = useState("");
   const [driverCityFilter, setDriverCityFilter] = useState("");
   const [driverStatusFilter, setDriverStatusFilter] = useState("");
@@ -684,7 +748,13 @@ export default function AdminDashboard() {
       !bookingDateFilter ||
       b.startDate.includes(bookingDateFilter) ||
       (b.createdAt ?? "").startsWith(bookingDateFilter);
-    return matchSearch && matchDate;
+    const matchDriver =
+      !bookingDriverSearch ||
+      (b.driverName ?? "")
+        .toLowerCase()
+        .includes(bookingDriverSearch.toLowerCase());
+    const matchId = !bookingIdSearch || String(b.id).includes(bookingIdSearch);
+    return matchSearch && matchDate && matchDriver && matchId;
   });
 
   const allDriverRows = registrations.map((r) => ({
@@ -965,10 +1035,24 @@ export default function AdminDashboard() {
 
               <div className="flex flex-wrap items-center gap-3">
                 <Input
-                  placeholder="Search by name or phone..."
+                  placeholder="Search by customer name or phone..."
                   value={bookingSearch}
                   onChange={(e) => setBookingSearch(e.target.value)}
-                  className={`w-56 ${inputCls}`}
+                  className={`w-52 ${inputCls}`}
+                  data-ocid="admin.bookings.search_input"
+                />
+                <Input
+                  placeholder="Search by driver name..."
+                  value={bookingDriverSearch}
+                  onChange={(e) => setBookingDriverSearch(e.target.value)}
+                  className={`w-48 ${inputCls}`}
+                  data-ocid="admin.bookings.search_input"
+                />
+                <Input
+                  placeholder="Search by booking ID..."
+                  value={bookingIdSearch}
+                  onChange={(e) => setBookingIdSearch(e.target.value)}
+                  className={`w-40 ${inputCls}`}
                   data-ocid="admin.bookings.search_input"
                 />
                 <Input
@@ -1196,6 +1280,28 @@ export default function AdminDashboard() {
                                 data-ocid={`admin.bookings.edit_button.${idx + 1}`}
                               >
                                 <Clock size={10} /> Log
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => downloadAdminInvoice(b)}
+                                className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded hover:bg-orange-200 flex items-center gap-0.5"
+                                title="Download Invoice"
+                                data-ocid={`admin.bookings.secondary_button.${idx + 1}`}
+                              >
+                                <Download size={10} /> Invoice
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard
+                                    .writeText(String(b.id))
+                                    .catch(() => {});
+                                }}
+                                className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 flex items-center gap-0.5"
+                                title="Copy Booking ID"
+                                data-ocid={`admin.bookings.secondary_button.${idx + 1}`}
+                              >
+                                📋 #{b.id}
                               </button>
                             </div>
                           </TableCell>

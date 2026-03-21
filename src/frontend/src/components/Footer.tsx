@@ -7,7 +7,7 @@ export default function Footer() {
     typeof window !== "undefined" ? window.location.hostname : "driveease.in";
 
   return (
-    <footer className="bg-gray-950 text-gray-400">
+    <footer className="bg-gray-900 text-gray-400">
       <div className="max-w-7xl mx-auto px-4 py-12 grid grid-cols-1 md:grid-cols-3 gap-10">
         {/* Column 1: Brand + Contact */}
         <div>
@@ -49,51 +49,23 @@ export default function Footer() {
         <div>
           <h4 className="text-white font-semibold mb-4">Quick Links</h4>
           <ul className="space-y-2 text-sm">
-            <li>
-              <Link to="/" className="hover:text-green-400 transition-colors">
-                Home
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/drivers"
-                className="hover:text-green-400 transition-colors"
-              >
-                Book Driver
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/register-driver"
-                className="hover:text-green-400 transition-colors"
-              >
-                Register as Driver
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/my-bookings"
-                className="hover:text-green-400 transition-colors"
-              >
-                Track Booking
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/subscriptions"
-                className="hover:text-green-400 transition-colors"
-              >
-                Family Plans
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/insurance"
-                className="hover:text-green-400 transition-colors"
-              >
-                Insurance & Helpline
-              </Link>
-            </li>
+            {[
+              { to: "/", label: "Home" },
+              { to: "/drivers", label: "Book Driver" },
+              { to: "/register-driver", label: "Register as Driver" },
+              { to: "/my-bookings", label: "Track Booking" },
+              { to: "/subscriptions", label: "Family Plans" },
+              { to: "/insurance", label: "Insurance & Helpline" },
+            ].map((l) => (
+              <li key={l.to}>
+                <Link
+                  to={l.to}
+                  className="hover:text-green-400 transition-colors"
+                >
+                  {l.label}
+                </Link>
+              </li>
+            ))}
           </ul>
         </div>
 

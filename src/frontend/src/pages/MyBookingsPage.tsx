@@ -568,7 +568,7 @@ export default function MyBookingsPage() {
                       </p>
                     </div>
 
-                    {/* OTP for active/confirmed bookings */}
+                    {/* OTP for active/confirmed bookings - hide once ride started */}
                     {(b.status === "confirmed" || b.status === "pending") && (
                       <div className="mt-3 bg-green-50 border border-green-200 rounded-xl p-3">
                         <p className="text-xs text-green-700 font-semibold mb-1">
@@ -580,6 +580,23 @@ export default function MyBookingsPage() {
                         <p className="text-xs text-green-600 mt-1">
                           Keep this private — only share when driver asks
                         </p>
+                      </div>
+                    )}
+
+                    {/* Ride in progress indicator */}
+                    {(b.status === "started" ||
+                      b.status === "in_progress" ||
+                      b.status === "active") && (
+                      <div className="mt-3 bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center gap-2">
+                        <span className="text-xl">🚗</span>
+                        <div>
+                          <p className="text-blue-800 font-semibold text-sm">
+                            Ride in Progress
+                          </p>
+                          <p className="text-blue-600 text-xs">
+                            Your driver has started the ride
+                          </p>
+                        </div>
                       </div>
                     )}
 

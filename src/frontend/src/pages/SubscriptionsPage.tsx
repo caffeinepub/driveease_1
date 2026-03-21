@@ -1,5 +1,6 @@
 import { CheckCircle, Clock, Shield, Star, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import SparkleBackground from "../components/SparkleBackground";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -294,6 +295,7 @@ export default function SubscriptionsPage() {
 
   return (
     <div className="min-h-screen" style={{ background: bg }}>
+      <SparkleBackground />
       <div
         className="py-14 px-4 text-center"
         style={{

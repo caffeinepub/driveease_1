@@ -1,5 +1,6 @@
 import { ArrowLeft, CheckCircle, LogOut, Phone, User } from "lucide-react";
 import { useState } from "react";
+import SparkleBackground from "../components/SparkleBackground";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -33,10 +34,16 @@ export default function OtpLoginPage() {
 
   if (customer?.loggedIn) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div
+        className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden"
+        style={{
+          background:
+            "linear-gradient(135deg, #0f172a 0%, #052e16 50%, #0f172a 100%)",
+        }}
+      >
         <Card className="max-w-sm w-full shadow-lg">
           <CardHeader>
-            <CardTitle className="text-center text-green-700">
+            <CardTitle className="text-center" style={{ color: "#34d399" }}>
               Welcome Back!
             </CardTitle>
           </CardHeader>
@@ -118,6 +125,7 @@ export default function OtpLoginPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-gray-100 flex items-center justify-center px-4">
+      <SparkleBackground />
       <Card className="max-w-sm w-full shadow-xl">
         <CardHeader>
           <div className="flex items-center gap-3">

@@ -1,6 +1,7 @@
 import { CheckCircle, Clock, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { ExternalBlob } from "../backend";
+import PageHeader from "../components/PageHeader";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -72,6 +73,7 @@ function WaitingScreen({
       className="min-h-screen flex items-center justify-center px-4"
       style={{ background: "#0a0f0d" }}
     >
+      <PageHeader subtitle="Drive With Us" />
       <div className="max-w-md w-full text-center">
         <div className="relative mx-auto w-32 h-32 mb-6">
           <svg

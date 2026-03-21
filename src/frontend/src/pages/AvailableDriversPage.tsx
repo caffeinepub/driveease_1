@@ -1,5 +1,6 @@
 import { Car, Copy, MapPin, RefreshCw, Star } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import SparkleBackground from "../components/SparkleBackground";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Link } from "../router";
@@ -95,6 +96,7 @@ export default function AvailableDriversPage() {
 
   return (
     <div className="min-h-screen bg-white py-8 px-4">
+      <SparkleBackground />
       <div className="max-w-5xl mx-auto">
         <div className="mb-8 flex items-start justify-between gap-3 flex-wrap">
           <div>

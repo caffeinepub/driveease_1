@@ -1,6 +1,7 @@
 import { Download, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "../router";
+import AnimatedLogo from "./AnimatedLogo";
 import { useInstallPrompt } from "./PWAInstallBanner";
 import { Button } from "./ui/button";
 
@@ -19,26 +20,23 @@ export default function Navbar() {
     { to: "/available-drivers", label: "Find Drivers" },
   ];
 
+  const activeCls = "text-primary font-semibold";
+  const linkCls = "text-gray-600 hover:text-primary transition-colors";
+
   return (
-    <header className="bg-gray-950 text-white sticky top-0 z-50 shadow-lg">
+    <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
-          <span className="text-green-400 font-bold text-2xl tracking-tight">
-            Drive<span className="text-white">Ease</span>
-          </span>
-          <span className="hidden sm:inline text-xs text-gray-400 border border-gray-700 rounded px-1.5 py-0.5">
-            Personal Driver Network
-          </span>
+          <AnimatedLogo size="sm" />
         </Link>
+
         <nav className="hidden md:flex items-center gap-1">
           {mainLinks.map((l) => (
             <Link
               key={l.to}
               to={l.to}
-              className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
-                pathname === l.to
-                  ? "text-green-400 bg-gray-800"
-                  : "text-gray-300 hover:text-white hover:bg-gray-800"
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                pathname === l.to ? activeCls : linkCls
               }`}
               data-ocid="navbar.link"
             >
@@ -48,24 +46,19 @@ export default function Navbar() {
 
           <Link
             to="/subscriptions"
-            className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
-              pathname === "/subscriptions"
-                ? "text-green-400 bg-gray-800"
-                : "text-gray-300 hover:text-white hover:bg-gray-800"
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              pathname === "/subscriptions" ? activeCls : linkCls
             }`}
             data-ocid="navbar.link"
           >
             Plans
           </Link>
 
-          {/* My Bookings — visible when customer is logged in */}
           {customer?.loggedIn && (
             <Link
               to="/my-bookings"
-              className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
-                pathname === "/my-bookings"
-                  ? "text-green-400 bg-gray-800"
-                  : "text-gray-300 hover:text-white hover:bg-gray-800"
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                pathname === "/my-bookings" ? activeCls : linkCls
               }`}
               data-ocid="navbar.link"
             >
@@ -75,21 +68,19 @@ export default function Navbar() {
 
           <Link
             to="/driver-login"
-            className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
-              pathname === "/driver-login"
-                ? "text-green-400 bg-gray-800"
-                : "text-gray-300 hover:text-white hover:bg-gray-800"
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              pathname === "/driver-login" ? activeCls : linkCls
             }`}
             data-ocid="navbar.link"
           >
-            Driver Login
+            Captain Login
           </Link>
 
           {customer?.loggedIn ? (
             <div className="flex items-center gap-1">
               <Link
                 to="/profile"
-                className="px-3 py-2 rounded text-sm font-medium text-green-300 hover:text-white hover:bg-gray-800"
+                className="px-3 py-2 rounded-lg text-sm font-medium text-primary hover:text-green-700"
                 data-ocid="navbar.link"
               >
                 Hi, {customer.name.split(" ")[0]}
@@ -100,7 +91,7 @@ export default function Navbar() {
                   localStorage.removeItem("otp_customer");
                   window.location.reload();
                 }}
-                className="px-2 py-1 rounded text-xs font-semibold text-red-400 hover:text-white hover:bg-red-900/60 border border-red-800/50 transition-colors"
+                className="px-2 py-1 rounded-lg text-xs font-semibold text-red-500 hover:bg-red-50 border border-red-200 transition-colors"
                 data-ocid="navbar.close_button"
               >
                 Logout
@@ -109,10 +100,8 @@ export default function Navbar() {
           ) : (
             <Link
               to="/login"
-              className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
-                pathname === "/login"
-                  ? "text-green-400 bg-gray-800"
-                  : "text-gray-300 hover:text-white hover:bg-gray-800"
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                pathname === "/login" ? activeCls : linkCls
               }`}
               data-ocid="navbar.link"
             >
@@ -120,12 +109,11 @@ export default function Navbar() {
             </Link>
           )}
 
-          {/* Install App button — shown when browser supports PWA install */}
           {canInstall && (
             <button
               type="button"
               onClick={() => triggerInstall()}
-              className="flex items-center gap-1.5 ml-1 px-3 py-2 rounded text-sm font-semibold text-green-300 border border-green-700 hover:bg-green-700 hover:text-white transition-all"
+              className="flex items-center gap-1.5 ml-1 px-3 py-2 rounded-lg text-sm font-semibold text-primary border border-primary/30 hover:bg-green-50 transition-all"
               data-ocid="navbar.install_app.button"
             >
               <Download size={14} />
@@ -135,40 +123,41 @@ export default function Navbar() {
 
           <Button
             asChild
-            className="ml-3 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all hover:scale-105"
+            className="ml-3 bg-primary hover:bg-green-700 text-white text-sm font-semibold px-5 py-2 rounded-full transition-all shadow-sm hover:shadow-md"
             data-ocid="navbar.primary_button"
           >
             <Link to="/drivers">Book a Driver</Link>
           </Button>
         </nav>
+
         <Button
           variant="ghost"
           size="icon"
-          className="md:hidden text-white"
+          className="md:hidden text-gray-700"
           onClick={() => setOpen(!open)}
         >
           {open ? <X /> : <Menu />}
         </Button>
       </div>
+
       {open && (
-        <div className="md:hidden bg-gray-900 px-4 pb-4">
+        <div className="md:hidden bg-white border-t border-gray-100 px-4 pb-4">
           {mainLinks.map((l) => (
             <Link
               key={l.to}
               to={l.to}
               onClick={() => setOpen(false)}
-              className="block py-2 text-gray-300 hover:text-green-400"
+              className="block py-2.5 text-gray-700 hover:text-primary font-medium border-b border-gray-50"
               data-ocid="navbar.link"
             >
               {l.label}
             </Link>
           ))}
-          {/* My Bookings in mobile nav for logged-in customers */}
           {customer?.loggedIn && (
             <Link
               to="/my-bookings"
               onClick={() => setOpen(false)}
-              className="block py-2 text-green-300 hover:text-green-400 font-medium"
+              className="block py-2.5 text-primary font-semibold border-b border-gray-50"
               data-ocid="navbar.link"
             >
               My Bookings
@@ -177,7 +166,7 @@ export default function Navbar() {
           <Link
             to="/subscriptions"
             onClick={() => setOpen(false)}
-            className="block py-2 text-gray-300 hover:text-green-400"
+            className="block py-2.5 text-gray-700 hover:text-primary font-medium border-b border-gray-50"
             data-ocid="navbar.link"
           >
             Plans
@@ -185,17 +174,17 @@ export default function Navbar() {
           <Link
             to="/driver-login"
             onClick={() => setOpen(false)}
-            className="block py-2 text-gray-300 hover:text-green-400"
+            className="block py-2.5 text-gray-700 hover:text-primary font-medium border-b border-gray-50"
             data-ocid="navbar.link"
           >
-            Driver Login
+            Captain Login
           </Link>
           {customer?.loggedIn ? (
-            <div className="py-2 border-t border-gray-700 mt-1">
+            <div className="py-2 mt-1">
               <Link
                 to="/profile"
                 onClick={() => setOpen(false)}
-                className="block py-1 text-green-300 font-medium hover:text-green-200"
+                className="block py-1 text-primary font-semibold"
                 data-ocid="navbar.link"
               >
                 Hi, {customer.name.split(" ")[0]} — My Profile
@@ -206,7 +195,7 @@ export default function Navbar() {
                   localStorage.removeItem("otp_customer");
                   window.location.reload();
                 }}
-                className="block w-full text-left py-2 text-red-400 hover:text-red-300 font-medium"
+                className="block w-full text-left py-2 text-red-500 font-medium"
                 data-ocid="navbar.mobile.close_button"
               >
                 Logout
@@ -216,13 +205,12 @@ export default function Navbar() {
             <Link
               to="/login"
               onClick={() => setOpen(false)}
-              className="block py-2 text-gray-300 hover:text-green-400"
+              className="block py-2.5 text-gray-700 hover:text-primary"
               data-ocid="navbar.mobile.link"
             >
               Login
             </Link>
           )}
-          {/* Mobile Install App button */}
           {canInstall && (
             <button
               type="button"
@@ -230,7 +218,7 @@ export default function Navbar() {
                 triggerInstall();
                 setOpen(false);
               }}
-              className="flex items-center gap-2 w-full mt-2 py-2 text-green-300 hover:text-green-400"
+              className="flex items-center gap-2 w-full mt-2 py-2 text-primary"
               data-ocid="navbar.mobile.install_app.button"
             >
               <Download size={16} />
@@ -240,7 +228,7 @@ export default function Navbar() {
           <Link
             to="/drivers"
             onClick={() => setOpen(false)}
-            className="block mt-3 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold px-4 py-2 rounded-lg text-center"
+            className="block mt-3 bg-primary hover:bg-green-700 text-white text-sm font-semibold px-4 py-2.5 rounded-full text-center shadow-sm"
             data-ocid="navbar.mobile.primary_button"
           >
             Book a Driver

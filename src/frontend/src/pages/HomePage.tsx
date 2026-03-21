@@ -9,6 +9,8 @@ import {
   Users,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import AnimatedLogo from "../components/AnimatedLogo";
+import SparkleBackground from "../components/SparkleBackground";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
@@ -16,22 +18,22 @@ import { Link } from "../router";
 
 const differentiators = [
   {
-    icon: <Shield className="text-green-600" size={32} />,
+    icon: <Shield className="text-primary" size={32} />,
     title: "Assigned Driver System",
     desc: "Same trusted driver for office, parents, kids, and medical visits.",
   },
   {
-    icon: <Users className="text-green-600" size={32} />,
+    icon: <Users className="text-primary" size={32} />,
     title: "Family Account",
     desc: "One account, multiple family members. SOS alerts go directly to family.",
   },
   {
-    icon: <CreditCard className="text-green-600" size={32} />,
+    icon: <CreditCard className="text-primary" size={32} />,
     title: "Subscription Plans",
     desc: "Monthly plans with predictable pricing and total peace of mind.",
   },
   {
-    icon: <Eye className="text-green-600" size={32} />,
+    icon: <Eye className="text-primary" size={32} />,
     title: "Trust Transparency",
     desc: "See police verification, training, medical fitness, and experience upfront.",
   },
@@ -60,9 +62,9 @@ function NeonDivider() {
       style={{
         height: "2px",
         background:
-          "linear-gradient(90deg, transparent 0%, #16a34a 30%, #4ade80 50%, #16a34a 70%, transparent 100%)",
+          "linear-gradient(90deg, transparent 0%, #34d399 30%, #059669 50%, #34d399 70%, transparent 100%)",
         backgroundSize: "200% 100%",
-        animation: "neonDividerShimmer 3s linear infinite",
+        animation: "dividerShimmer 3s linear infinite",
         margin: 0,
       }}
     />
@@ -93,7 +95,25 @@ export default function HomePage() {
 
   return (
     <div className="bg-white">
+      <SparkleBackground density={30} />
       <style>{`
+        @keyframes sparkleFloat {
+          0% { transform: translateY(0) scale(1); opacity: 0.6; }
+          50% { transform: translateY(-30px) scale(1.2); opacity: 0.9; }
+          100% { transform: translateY(-60px) scale(0.8); opacity: 0; }
+        }
+        @keyframes sparkleTwinkle {
+          0%, 100% { transform: scale(0); opacity: 0; }
+          50% { transform: scale(1); opacity: 0.8; }
+        }
+        @keyframes bubbleOrbit {
+          from { transform: rotate(0deg) translateX(180px) rotate(0deg); }
+          to { transform: rotate(360deg) translateX(180px) rotate(-360deg); }
+        }
+        @keyframes floatUpDown {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-18px); }
+        }
         @keyframes pulseGlow {
           0%, 100% { box-shadow: 0 8px 0 #78350f, 0 14px 24px rgba(0,0,0,0.5), 0 0 0 0 rgba(253,186,116,0); }
           50% { box-shadow: 0 8px 0 #78350f, 0 14px 24px rgba(0,0,0,0.5), 0 0 24px 6px rgba(253,186,116,0.35); }
@@ -112,17 +132,15 @@ export default function HomePage() {
           animation: heroImgGlow 3s ease-in-out infinite;
           border-radius: 20px;
         }
-        .btn-3d-green {
-          background: #16a34a;
+        /* bubble buttons */
+        .bubble-btn-green {
+          background: linear-gradient(135deg, #16a34a 0%, #22c55e 60%, #4ade80 100%);
           color: white;
-          box-shadow: 0 8px 0 #064e3b, 0 12px 20px rgba(0,0,0,0.5);
-          transform: translateY(0);
-          transition: all 0.1s ease;
-          border-radius: 14px;
-          font-size: 1.15rem;
+          border-radius: 9999px;
+          font-size: 1.1rem;
           font-weight: 800;
           letter-spacing: 0.04em;
-          padding: 18px 36px;
+          padding: 16px 36px;
           text-decoration: none;
           display: inline-flex;
           align-items: center;
@@ -130,31 +148,35 @@ export default function HomePage() {
           border: none;
           cursor: pointer;
           font-family: 'Exo 2', sans-serif;
+          position: relative;
+          animation: bubblePulse 2s infinite;
+          transition: transform 0.15s ease, filter 0.15s ease;
+          box-shadow: 0 4px 15px rgba(34,197,94,0.5);
         }
-        .btn-3d-green:hover { transform: translateY(4px); box-shadow: 0 4px 0 #064e3b, 0 6px 12px rgba(0,0,0,0.4); }
-        .btn-3d-green:active { transform: translateY(7px); box-shadow: 0 1px 0 #064e3b, 0 2px 6px rgba(0,0,0,0.3); }
-        .btn-3d-white {
-          background: #ffffff;
+        .bubble-btn-green:hover { transform: scale(1.06); filter: brightness(1.1); }
+        .bubble-btn-green:active { transform: scale(0.97); }
+        .bubble-btn-white {
+          background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
           color: #064e3b;
-          box-shadow: 0 8px 0 #78350f, 0 12px 20px rgba(0,0,0,0.5);
-          transform: translateY(0);
-          transition: all 0.1s ease;
-          animation: pulseGlow 2.5s ease-in-out infinite;
-          border-radius: 14px;
-          font-size: 1.15rem;
+          border-radius: 9999px;
+          font-size: 1.1rem;
           font-weight: 800;
           letter-spacing: 0.04em;
-          padding: 18px 36px;
+          padding: 16px 36px;
           text-decoration: none;
           display: inline-flex;
           align-items: center;
           gap: 8px;
-          border: none;
+          border: 2px solid #22c55e;
           cursor: pointer;
           font-family: 'Exo 2', sans-serif;
+          position: relative;
+          animation: bubblePulse 2s infinite 0.5s;
+          transition: transform 0.15s ease, filter 0.15s ease;
+          box-shadow: 0 4px 15px rgba(34,197,94,0.3);
         }
-        .btn-3d-white:hover { transform: translateY(4px); box-shadow: 0 4px 0 #78350f, 0 6px 12px rgba(0,0,0,0.4); animation: none; }
-        .btn-3d-white:active { transform: translateY(7px); box-shadow: 0 1px 0 #78350f, 0 2px 6px rgba(0,0,0,0.3); }
+        .bubble-btn-white:hover { transform: scale(1.06); filter: brightness(1.05); }
+        .bubble-btn-white:active { transform: scale(0.97); }
         .text-3d-green {
           font-family: 'Orbitron', sans-serif;
           font-size: clamp(1.6rem, 4vw, 3rem);
@@ -187,227 +209,108 @@ export default function HomePage() {
             inset: 0,
             zIndex: 9999,
             background:
-              "linear-gradient(135deg, #020b02 0%, #050d05 50%, #0a1a0a 100%)",
+              "linear-gradient(135deg, #f0fdf4 0%, #ffffff 50%, #ecfdf5 100%)",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            animation: "welcomeFadeOut 0.8s ease 3.7s forwards",
+            animation: "welcomeFadeOut 0.7s ease 2.3s forwards",
             overflow: "hidden",
             pointerEvents: "none",
           }}
         >
-          {/* Particle dots */}
-          {Array.from({ length: 12 }, (_, i) => `particle-${i}`).map(
-            (pid, i) => (
-              <div
-                key={pid}
-                style={{
-                  position: "absolute",
-                  width: i % 3 === 0 ? "4px" : "2px",
-                  height: i % 3 === 0 ? "4px" : "2px",
-                  background: "#22c55e",
-                  borderRadius: "50%",
-                  left: `${(i * 8.5) % 100}%`,
-                  animation: `particleFloat ${2 + (i % 3)}s ease-in ${i * 0.2}s infinite`,
-                  opacity: 0.7,
-                }}
-              />
-            ),
-          )}
-
-          {/* Road strip with scrolling dashes */}
+          {/* Subtle top accent bar */}
           <div
             style={{
               position: "absolute",
-              bottom: "15%",
+              top: 0,
               left: 0,
               right: 0,
-              height: "80px",
-              background: "#1a1a1a",
-              borderTop: "3px solid #333",
-              borderBottom: "3px solid #333",
+              height: "4px",
+              background: "linear-gradient(90deg, #059669, #34d399, #059669)",
+              backgroundSize: "200% 100%",
+              animation: "shimmer 2s linear infinite",
+            }}
+          />
+
+          {/* Logo */}
+          <div
+            style={{
+              animation:
+                "welcomeLogoIn 0.6s cubic-bezier(0.34,1.56,0.64,1) 0.2s both",
+              textAlign: "center",
             }}
           >
-            <div
+            <img
+              src="/assets/generated/driveease-logo-3d-transparent.dim_400x200.png"
+              alt="DriveEase"
               style={{
-                position: "absolute",
-                top: "50%",
-                transform: "translateY(-50%)",
-                left: 0,
-                right: 0,
-                height: "4px",
-                backgroundImage:
-                  "repeating-linear-gradient(90deg, #fbbf24 0px, #fbbf24 40px, transparent 40px, transparent 80px)",
-                animation: "roadScroll 0.4s linear infinite",
+                height: "80px",
+                width: "auto",
+                objectFit: "contain",
+                filter: "drop-shadow(0 4px 16px rgba(234,88,12,0.3))",
               }}
             />
           </div>
 
-          {/* Animated Car SVG */}
+          {/* Brand name */}
           <div
             style={{
-              position: "absolute",
-              bottom: "calc(15% + 20px)",
-              animation:
-                "carEntrance 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both",
+              fontFamily: "Exo 2, sans-serif",
+              fontSize: "clamp(2rem, 7vw, 3.5rem)",
+              fontWeight: 900,
+              letterSpacing: "0.12em",
+              marginTop: "16px",
+              background:
+                "linear-gradient(135deg, #059669 0%, #34d399 50%, #047857 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+              animation: "welcomeLogoIn 0.7s ease 0.35s both",
             }}
           >
-            <svg
-              width="200"
-              height="80"
-              viewBox="0 0 200 80"
-              fill="none"
-              aria-label="DriveEase car"
-            >
-              <title>DriveEase Car</title>
-              {/* Car body */}
-              <rect
-                x="20"
-                y="30"
-                width="160"
-                height="35"
-                rx="8"
-                fill="#16a34a"
-              />
-              {/* Car roof */}
-              <path d="M55 30 L75 10 L130 10 L150 30Z" fill="#15803d" />
-              {/* Windows */}
-              <rect
-                x="80"
-                y="13"
-                width="45"
-                height="14"
-                rx="2"
-                fill="#93c5fd"
-                opacity="0.8"
-              />
-              {/* Headlight */}
-              <ellipse cx="178" cy="47" rx="8" ry="5" fill="#fef9c3" />
-              <ellipse cx="178" cy="47" rx="5" ry="3" fill="#fbbf24" />
-              {/* Taillight */}
-              <rect x="22" y="42" width="12" height="8" rx="2" fill="#ef4444" />
-              {/* Wheel 1 */}
-              <circle cx="60" cy="65" r="13" fill="#111827" />
-              <circle cx="60" cy="65" r="7" fill="#374151" />
-              <circle
-                cx="60"
-                cy="65"
-                r="3"
-                fill="#9ca3af"
-                style={{ animation: "wheelSpin 0.5s linear infinite" }}
-              />
-              {/* Wheel 2 */}
-              <circle cx="145" cy="65" r="13" fill="#111827" />
-              <circle cx="145" cy="65" r="7" fill="#374151" />
-              <circle
-                cx="145"
-                cy="65"
-                r="3"
-                fill="#9ca3af"
-                style={{ animation: "wheelSpin 0.5s linear infinite" }}
-              />
-              {/* Speed lines */}
-              <line
-                x1="0"
-                y1="35"
-                x2="15"
-                y2="35"
-                stroke="#22c55e"
-                strokeWidth="2"
-                opacity="0.6"
-                style={{ animation: "speedLines 0.8s ease infinite" }}
-              />
-              <line
-                x1="0"
-                y1="45"
-                x2="12"
-                y2="45"
-                stroke="#22c55e"
-                strokeWidth="1.5"
-                opacity="0.4"
-                style={{ animation: "speedLines 0.8s ease 0.1s infinite" }}
-              />
-              <line
-                x1="0"
-                y1="55"
-                x2="18"
-                y2="55"
-                stroke="#22c55e"
-                strokeWidth="2"
-                opacity="0.5"
-                style={{ animation: "speedLines 0.8s ease 0.2s infinite" }}
-              />
-            </svg>
+            DRIVEEASE
           </div>
 
-          {/* DriveEase Logo Text - 3D Premium */}
-          <div
+          {/* Tagline */}
+          <p
             style={{
-              textAlign: "center",
-              marginBottom: "20px",
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
+              fontSize: "0.95rem",
+              color: "#6b7280",
+              letterSpacing: "0.05em",
+              marginTop: "10px",
+              animation: "welcomeTagIn 0.6s ease 0.6s both",
             }}
           >
-            <div
-              className="logo-3d-shimmer"
-              style={{
-                fontFamily: "Orbitron, sans-serif",
-                fontSize: "clamp(2.5rem, 8vw, 5rem)",
-                fontWeight: 900,
-                letterSpacing: "0.15em",
-                lineHeight: 1,
-                textShadow:
-                  "2px 2px 0 #065f46, 4px 4px 0 #064e3b, 6px 6px 0 #022c22, 8px 8px 0 #011a11, 0 0 60px rgba(34,197,94,0.8), 0 0 120px rgba(34,197,94,0.4)",
-                animation: "logoEntrance 0.8s ease forwards",
-                background:
-                  "linear-gradient(90deg, #22c55e 0%, #ffffff 30%, #4ade80 50%, #ffffff 70%, #22c55e 100%)",
-                backgroundSize: "200% auto",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}
-            >
-              DRIVEEASE
-            </div>
-            <div
-              style={{
-                fontFamily: "Exo 2, sans-serif",
-                fontSize: "0.9rem",
-                color: "#4ade80",
-                letterSpacing: "0.3em",
-                textTransform: "uppercase",
-                marginTop: "12px",
-                opacity: 0,
-                animation: "fadeSlideUp 0.7s ease 0.5s forwards",
-              }}
-            >
-              India's First Personal Driver Network
-            </div>
-          </div>
+            India's First Personal Driver Network
+          </p>
 
           {/* Loading bar */}
           <div
             style={{
-              width: "200px",
+              width: "160px",
               height: "3px",
-              background: "#1a2e1a",
-              borderRadius: "2px",
+              background: "#bbf7d0",
+              borderRadius: "999px",
               overflow: "hidden",
-              animation: "fadeSlideUp 0.5s ease 1s both",
+              marginTop: "32px",
+              animation: "welcomeTagIn 0.4s ease 0.8s both",
             }}
           >
             <div
               style={{
                 height: "100%",
-                background: "linear-gradient(90deg, #16a34a, #4ade80, #16a34a)",
-                backgroundSize: "200% 100%",
-                animation: "shimmer 1s linear infinite",
-                width: "100%",
+                background: "linear-gradient(90deg, #059669, #34d399)",
+                animation: "welcomeBarFill 2s ease 0.85s forwards",
+                width: "0%",
               }}
             />
           </div>
         </div>
       )}
+
+      {/* ===== FLOATING CAR WIDGET (Desktop Only) =====
 
       {/* ===== FLOATING CAR WIDGET (Desktop Only) ===== */}
       <div
@@ -467,84 +370,155 @@ export default function HomePage() {
       </div>
 
       {/* ===== HERO SECTION ===== */}
-      <section
-        className="relative min-h-screen flex items-center overflow-hidden"
-        style={{ background: "#0f172a" }}
-      >
+      <section className="relative min-h-screen flex items-center overflow-hidden bg-white">
+        {/* Subtle decorative circles for clean light theme */}
         <div
-          className="absolute inset-0 md:hidden"
-          style={{
-            backgroundImage:
-              "url('/assets/generated/hero-driver-portrait.dim_600x800.jpg')",
-            backgroundSize: "cover",
-            backgroundPosition: "top center",
-            filter: "blur(3px) brightness(0.4)",
-            transform: "scale(1.05)",
-          }}
-        />
-        <div
-          className="absolute inset-0 md:hidden"
-          style={{
-            background:
-              "linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.7) 100%)",
-          }}
-        />
-        <div
-          className="absolute inset-0 hidden md:block"
-          style={{
-            background:
-              "linear-gradient(135deg, #0f172a 0%, #0f172a 55%, #0a1f12 100%)",
-          }}
-        />
+          className="absolute inset-0 overflow-hidden pointer-events-none"
+          style={{ zIndex: 0 }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: "10%",
+              right: "5%",
+              width: "320px",
+              height: "320px",
+              borderRadius: "50%",
+              background:
+                "radial-gradient(circle, rgba(234,88,12,0.06) 0%, transparent 70%)",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              bottom: "20%",
+              right: "15%",
+              width: "200px",
+              height: "200px",
+              borderRadius: "50%",
+              background:
+                "radial-gradient(circle, rgba(234,88,12,0.04) 0%, transparent 70%)",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              top: "40%",
+              left: "2%",
+              width: "150px",
+              height: "150px",
+              borderRadius: "50%",
+              background:
+                "radial-gradient(circle, rgba(52,211,153,0.05) 0%, transparent 70%)",
+            }}
+          />
+        </div>
 
         <div className="relative z-10 w-full max-w-7xl mx-auto px-4 py-16 md:py-0 flex flex-col md:flex-row items-center gap-10 md:gap-0 min-h-screen">
           <div className="flex-1 flex flex-col items-center md:items-start justify-center text-center md:text-left md:pr-10">
             <div className="anim-hero-badge">
-              <Badge className="bg-green-600/20 text-green-400 border border-green-600/40 mb-5 text-xs tracking-widest uppercase px-3 py-1">
+              <Badge className="bg-green-100 text-green-700 border border-green-200 mb-5 text-xs tracking-widest uppercase px-3 py-1">
                 India's First Personal Driver Network
               </Badge>
             </div>
+            {/* DriveEase logo */}
+            <div
+              className="mb-4"
+              style={{ animation: "floatUpDown 3s ease-in-out infinite" }}
+            >
+              <AnimatedLogo size="lg" />
+            </div>
             <h1
               style={{ fontFamily: "Exo 2, sans-serif" }}
-              className="anim-hero-h1 text-4xl sm:text-5xl md:text-6xl font-bold text-white leading-tight mb-5"
+              className="anim-hero-h1 text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 leading-tight mb-5"
             >
               Book a Professional Driver
               <br />
-              <span className="text-green-400">Anytime, Anywhere</span>
+              <span className="text-primary">Anytime, Anywhere</span>
             </h1>
-            <p className="anim-hero-sub text-lg text-gray-300 mb-8 max-w-lg">
+            <p className="anim-hero-sub text-lg text-gray-600 mb-8 max-w-lg">
               Verified drivers across India. Safe, reliable, and affordable
               rides at your fingertips.
             </p>
             <div className="anim-hero-btns mb-10">
-              <div className="mb-5 flex flex-col sm:flex-row gap-4 sm:gap-8 items-center justify-center md:justify-start">
-                <span className="text-3d-green">DRIVER LOGIN</span>
-                <span
-                  className="text-white font-black"
-                  style={{
-                    fontSize: "clamp(1.5rem,4vw,2.8rem)",
-                    textShadow: "2px 2px 0 #000",
-                    letterSpacing: "0.03em",
-                  }}
-                >
-                  ✦
-                </span>
-                <span className="text-3d-green">BOOK DRIVER</span>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link
-                  to="/driver-login"
-                  className="btn-3d-green"
-                  data-ocid="hero.primary_button"
-                >
-                  🚗 Driver Login
-                </Link>
+              <div className="flex items-center gap-6">
+                {/* Icon-only bubble: Driver Login */}
+                <div className="flex flex-col items-center gap-2 group">
+                  <Link
+                    to="/driver-login"
+                    data-ocid="hero.primary_button"
+                    className="hover:scale-110 active:scale-95"
+                  >
+                    <div
+                      style={{
+                        width: "72px",
+                        height: "72px",
+                        borderRadius: "50%",
+                        background:
+                          "linear-gradient(135deg, #059669 0%, #34d399 100%)",
+                        boxShadow:
+                          "0 6px 0 #047857, 0 10px 24px rgba(5,150,105,0.4)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "1.8rem",
+                        transition: "transform 0.15s ease",
+                      }}
+                    >
+                      🎛️
+                    </div>
+                  </Link>
+                  <span className="text-xs font-semibold text-gray-500 group-hover:text-primary transition-colors">
+                    Captain Login
+                  </span>
+                </div>
+
+                <div className="text-gray-300 text-2xl font-light select-none">
+                  ·
+                </div>
+
+                {/* Icon-only bubble: Book Driver */}
+                <div className="flex flex-col items-center gap-2 group">
+                  <Link
+                    to="/drivers"
+                    data-ocid="hero.secondary_button"
+                    className="hover:scale-110 active:scale-95"
+                  >
+                    <div
+                      style={{
+                        width: "72px",
+                        height: "72px",
+                        borderRadius: "50%",
+                        background:
+                          "linear-gradient(135deg, #1f2937 0%, #374151 100%)",
+                        boxShadow:
+                          "0 6px 0 #111827, 0 10px 24px rgba(0,0,0,0.35)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "1.8rem",
+                        transition: "transform 0.15s ease",
+                      }}
+                    >
+                      📍
+                    </div>
+                  </Link>
+                  <span className="text-xs font-semibold text-gray-500 group-hover:text-gray-800 transition-colors">
+                    Book Driver
+                  </span>
+                </div>
+
+                <div className="text-gray-300 text-2xl font-light select-none">
+                  ·
+                </div>
+
+                {/* Text CTA */}
                 <Link
                   to="/drivers"
-                  className="btn-3d-white"
-                  data-ocid="hero.secondary_button"
+                  data-ocid="hero.primary_button"
+                  className="px-6 py-3.5 rounded-full bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600 text-white font-bold text-sm tracking-wide transition-all hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/30"
                 >
-                  📍 Book a Driver Now
+                  Book Now →
                 </Link>
               </div>
             </div>
@@ -552,36 +526,174 @@ export default function HomePage() {
               {trustIndicators.map((t) => (
                 <div
                   key={t.value}
-                  className="flex items-center gap-1.5 bg-white/10 backdrop-blur-sm border border-white/10 rounded-full px-4 py-1.5 text-sm text-white font-medium"
+                  className="flex items-center gap-1.5 bg-gray-100 border border-gray-200 rounded-full px-4 py-1.5 text-sm text-gray-700 font-medium"
                 >
                   <span>{t.icon}</span>
                   <span>{t.value}</span>
                 </div>
               ))}
             </div>
+            {/* Mobile car bubble sticker */}
+            <div
+              className="md:hidden mt-8 flex items-center justify-center"
+              style={{ animation: "floatUpDown 3s ease-in-out infinite" }}
+            >
+              <div
+                style={{
+                  width: "200px",
+                  height: "200px",
+                  borderRadius: "50%",
+                  background:
+                    "radial-gradient(circle at 35% 30%, #1a4a2a 0%, #0a2010 40%, #050f08 100%)",
+                  border: "3px solid rgba(74,222,128,0.5)",
+                  boxShadow:
+                    "0 0 40px rgba(34,197,94,0.4), inset 0 0 20px rgba(34,197,94,0.1)",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "12%",
+                    left: "15%",
+                    width: "55%",
+                    height: "35%",
+                    background:
+                      "radial-gradient(ellipse at 40% 40%, rgba(255,255,255,0.22) 0%, transparent 70%)",
+                    borderRadius: "50%",
+                  }}
+                />
+                <svg
+                  width="140"
+                  height="56"
+                  viewBox="0 0 200 80"
+                  fill="none"
+                  aria-label="Mobile car bubble"
+                >
+                  <title>Mobile Car Bubble</title>
+                  <rect
+                    x="20"
+                    y="30"
+                    width="160"
+                    height="35"
+                    rx="8"
+                    fill="#16a34a"
+                  />
+                  <path d="M55 30 L75 10 L130 10 L150 30Z" fill="#15803d" />
+                  <rect
+                    x="80"
+                    y="13"
+                    width="45"
+                    height="14"
+                    rx="2"
+                    fill="#93c5fd"
+                    opacity="0.8"
+                  />
+                  <ellipse cx="178" cy="47" rx="8" ry="5" fill="#fef9c3" />
+                  <circle cx="60" cy="65" r="13" fill="#111827" />
+                  <circle cx="60" cy="65" r="7" fill="#374151" />
+                  <circle cx="145" cy="65" r="13" fill="#111827" />
+                  <circle cx="145" cy="65" r="7" fill="#374151" />
+                </svg>
+                <div
+                  style={{
+                    fontFamily: "Orbitron, sans-serif",
+                    fontSize: "0.55rem",
+                    fontWeight: 900,
+                    letterSpacing: "0.2em",
+                    color: "#4ade80",
+                    textShadow: "0 0 8px rgba(74,222,128,0.8)",
+                    marginTop: "4px",
+                  }}
+                >
+                  DRIVEEASE
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="hidden md:flex flex-1 items-center justify-center md:justify-end">
-            <div className="anim-hero-img relative">
+            <div
+              className="anim-hero-img relative"
+              style={{ animation: "floatUpDown 3s ease-in-out infinite" }}
+            >
+              {/* Driver + Car photo */}
+              <div style={{ position: "relative" }}>
+                <img
+                  src="/assets/generated/driveease-driver-car.dim_800x600.png"
+                  alt="DriveEase Driver"
+                  style={{
+                    width: "100%",
+                    maxWidth: "420px",
+                    borderRadius: "24px",
+                    boxShadow:
+                      "0 32px 80px rgba(0,0,0,0.25), 0 0 0 2px rgba(52,211,153,0.4), 0 0 40px rgba(16,185,129,0.15)",
+                    display: "block",
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: "16px",
+                    left: 0,
+                    right: 0,
+                    textAlign: "center",
+                    background: "rgba(5,150,105,0.9)",
+                    backdropFilter: "blur(8px)",
+                    color: "#fff",
+                    fontSize: "0.65rem",
+                    fontWeight: 800,
+                    letterSpacing: "0.2em",
+                    padding: "6px 0",
+                    textTransform: "uppercase",
+                    borderRadius: "0 0 24px 24px",
+                  }}
+                >
+                  DRIVEEASE — VERIFIED CAPTAIN
+                </div>
+              </div>
+              {/* Floating stats bubbles */}
               <div
-                className="absolute -inset-4 rounded-3xl opacity-40"
                 style={{
-                  background:
-                    "radial-gradient(ellipse at center, #16a34a 0%, transparent 70%)",
+                  position: "absolute",
+                  top: "5%",
+                  right: "-10px",
+                  background: "#fff",
+                  borderRadius: "999px",
+                  padding: "8px 16px",
+                  boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+                  border: "1px solid #f3f4f6",
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  color: "#1f2937",
+                  whiteSpace: "nowrap",
                 }}
-              />
-              <img
-                src="/assets/generated/hero-driver-portrait.dim_600x800.jpg"
-                alt="Professional DriveEase driver standing by car"
-                className="relative hero-img-glow object-cover"
-                loading="eager"
+              >
+                ⭐ 4.8 Rating
+              </div>
+              <div
                 style={{
-                  width: "440px",
-                  height: "560px",
-                  objectFit: "cover",
-                  objectPosition: "center top",
+                  position: "absolute",
+                  bottom: "10%",
+                  left: "-10px",
+                  background: "#fff",
+                  borderRadius: "999px",
+                  padding: "8px 16px",
+                  boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+                  border: "1px solid #f3f4f6",
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  color: "#1f2937",
+                  whiteSpace: "nowrap",
                 }}
-              />
+              >
+                ✅ Verified
+              </div>
             </div>
           </div>
         </div>
@@ -589,6 +701,76 @@ export default function HomePage() {
 
       {/* ===== NEON DIVIDER ===== */}
       <NeonDivider />
+
+      {/* ===== 3D LOGO SHOWCASE ===== */}
+      <section
+        style={{
+          background: "linear-gradient(180deg, #f0fdf4 0%, #ecfdf5 100%)",
+          padding: "40px 24px",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "24px",
+        }}
+      >
+        <style>{`
+          @keyframes logoFloat {
+            0%, 100% { transform: translateY(0px); filter: drop-shadow(0 0 20px #22c55e) drop-shadow(0 0 40px #16a34a); }
+            50% { transform: translateY(-15px); filter: drop-shadow(0 0 30px #4ade80) drop-shadow(0 0 60px #22c55e); }
+          }
+          @keyframes badgeRotate {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "40px",
+            flexWrap: "wrap",
+            justifyContent: "center",
+          }}
+        >
+          <AnimatedLogo size="lg" />
+          <img
+            src="/assets/generated/driveease-badge-transparent.dim_200x200.png"
+            alt="DriveEase Trusted Badge"
+            style={{
+              height: "90px",
+              width: "90px",
+              objectFit: "contain",
+              animation: "badgeRotate 10s linear infinite",
+            }}
+          />
+        </div>
+        <p
+          style={{
+            fontFamily: "Orbitron, sans-serif",
+            color: "#4ade80",
+            fontSize: "0.75rem",
+            letterSpacing: "0.2em",
+            textTransform: "uppercase",
+          }}
+        >
+          India's First Personal Driver Network
+        </p>
+      </section>
+
+      {/* ===== CAR BANNER ===== */}
+      <div style={{ width: "100%", overflow: "hidden", maxHeight: "220px" }}>
+        <img
+          src="/assets/generated/driveease-car-banner.dim_1200x400.jpg"
+          alt="DriveEase car banner"
+          style={{
+            width: "100%",
+            height: "220px",
+            objectFit: "cover",
+            objectPosition: "center",
+            display: "block",
+            opacity: 0.9,
+          }}
+        />
+      </div>
 
       {/* ===== ANIMATED CAR STRIP ===== */}
       <div
@@ -818,22 +1000,22 @@ export default function HomePage() {
                       {
                         label: "Police Verification",
                         value: "Verified",
-                        color: "text-green-600",
+                        color: "text-primary",
                       },
                       {
                         label: "Background Check",
                         value: "Complete",
-                        color: "text-green-600",
+                        color: "text-primary",
                       },
                       {
                         label: "Grooming & Etiquette",
                         value: "Certified",
-                        color: "text-green-600",
+                        color: "text-primary",
                       },
                       {
                         label: "Medical Fitness",
                         value: "Fit",
-                        color: "text-green-600",
+                        color: "text-primary",
                       },
                       {
                         label: "Experience",
@@ -973,7 +1155,7 @@ export default function HomePage() {
       </section>
 
       {/* ===== BRAND AMBASSADOR ===== */}
-      <section className="py-16 px-4" style={{ background: "#0f172a" }}>
+      <section className="py-16 px-4" style={{ background: "#1f2937" }}>
         <div className="max-w-3xl mx-auto text-center">
           <Badge className="bg-green-600/20 text-green-400 border border-green-600/40 mb-4 text-xs tracking-widest uppercase px-3 py-1">
             Brand Ambassador
@@ -1033,7 +1215,7 @@ export default function HomePage() {
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="1.5"
-                    className="w-7 h-7 text-green-600"
+                    className="w-7 h-7 text-primary"
                     aria-label="IT Support"
                   >
                     <title>IT Support</title>
@@ -1144,7 +1326,7 @@ export default function HomePage() {
                   <div className="text-3xl mb-3">{item.icon}</div>
                   <div className="flex items-baseline gap-1 mb-2">
                     <span
-                      className="text-2xl font-black text-green-600"
+                      className="text-2xl font-black text-primary"
                       style={{ fontFamily: "Orbitron, sans-serif" }}
                     >
                       {item.highlight}
@@ -1292,7 +1474,7 @@ export default function HomePage() {
                         <Copy size={14} />
                       </button>
                       {copied === "home_acc" && (
-                        <span className="text-xs text-green-600">Copied!</span>
+                        <span className="text-xs text-primary">Copied!</span>
                       )}
                     </div>
                   </div>
@@ -1312,7 +1494,7 @@ export default function HomePage() {
                         <Copy size={14} />
                       </button>
                       {copied === "home_ifsc" && (
-                        <span className="text-xs text-green-600">Copied!</span>
+                        <span className="text-xs text-primary">Copied!</span>
                       )}
                     </div>
                   </div>

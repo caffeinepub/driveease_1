@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import MapPicker from "../components/MapPicker";
+import PageHeader from "../components/PageHeader";
+import SparkleBackground from "../components/SparkleBackground";
 import StatesCitiesSelect from "../components/StatesCitiesSelect";
 import { Button } from "../components/ui/button";
 import {
@@ -531,6 +533,20 @@ export default function BookingPage() {
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <PageHeader subtitle="Book a Driver" />
+        <img
+          src="/assets/generated/driveease-car-banner.dim_1200x400.jpg"
+          alt="DriveEase banner"
+          style={{
+            width: "100%",
+            height: "128px",
+            objectFit: "cover",
+            borderRadius: "12px",
+            marginBottom: "16px",
+            opacity: 0.8,
+            display: "block",
+          }}
+        />
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full text-center border border-gray-100">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Shield size={28} className="text-green-600" />
@@ -858,6 +874,7 @@ export default function BookingPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
+      <SparkleBackground />
       <div className="max-w-2xl mx-auto">
         <div className="mb-6">
           <Link

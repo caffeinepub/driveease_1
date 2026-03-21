@@ -7,6 +7,7 @@ import {
   Star,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import PageHeader from "../components/PageHeader";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
@@ -133,6 +134,7 @@ export default function DriversPage() {
 
   return (
     <div className="min-h-screen bg-white">
+      <PageHeader subtitle="Find Drivers" />
       {/* Hero */}
       <div className="bg-gradient-to-br from-green-50 to-white border-b border-green-100">
         <div className="max-w-3xl mx-auto py-12 px-4 text-center">

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import AnimatedLogo from "./components/AnimatedLogo";
 import BottomNav from "./components/BottomNav";
 import ChatbotWidget from "./components/ChatbotWidget";
 import Footer from "./components/Footer";
@@ -30,8 +31,8 @@ function WelcomeSplash({ onDone }: { onDone: () => void }) {
   const [fading, setFading] = useState(false);
 
   useEffect(() => {
-    const fadeTimer = setTimeout(() => setFading(true), 2200);
-    const doneTimer = setTimeout(() => onDone(), 2700);
+    const fadeTimer = setTimeout(() => setFading(true), 2500);
+    const doneTimer = setTimeout(() => onDone(), 3000);
     return () => {
       clearTimeout(fadeTimer);
       clearTimeout(doneTimer);
@@ -113,18 +114,20 @@ function WelcomeSplash({ onDone }: { onDone: () => void }) {
         className="splash-logo"
         style={{ textAlign: "center", marginBottom: 12 }}
       >
+        <AnimatedLogo size="lg" />
         <div
           style={{
-            fontSize: "clamp(2.5rem, 8vw, 4.5rem)",
+            fontSize: "clamp(1.5rem, 5vw, 2.5rem)",
             fontWeight: 900,
             color: "#4ade80",
-            letterSpacing: "0.06em",
-            textShadow:
-              "2px 2px 0 #065f46, 4px 4px 0 #064e3b, 6px 6px 0 #022c22, 0 0 60px rgba(74,222,128,0.5)",
+            letterSpacing: "0.12em",
+            textShadow: "0 0 30px rgba(74,222,128,0.6)",
             lineHeight: 1,
+            marginTop: "12px",
+            fontFamily: "Exo 2, sans-serif",
           }}
         >
-          🚗 DriveEase
+          DRIVEEASE
         </div>
       </div>
 
