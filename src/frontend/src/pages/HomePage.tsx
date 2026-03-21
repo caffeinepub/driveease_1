@@ -1,6 +1,5 @@
 import {
   CheckCircle,
-  ChevronRight,
   Copy,
   CreditCard,
   Eye,
@@ -9,7 +8,7 @@ import {
   Star,
   Users,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
@@ -54,8 +53,37 @@ const trustIndicators = [
   { icon: "✅", value: "Aadhaar Verified" },
 ];
 
+// Neon divider component
+function NeonDivider() {
+  return (
+    <div
+      style={{
+        height: "2px",
+        background:
+          "linear-gradient(90deg, transparent 0%, #16a34a 30%, #4ade80 50%, #16a34a 70%, transparent 100%)",
+        backgroundSize: "200% 100%",
+        animation: "neonDividerShimmer 3s linear infinite",
+        margin: 0,
+      }}
+    />
+  );
+}
+
 export default function HomePage() {
   const [copied, setCopied] = useState("");
+  const [showWelcome, setShowWelcome] = useState(() => {
+    return !sessionStorage.getItem("de_welcomed");
+  });
+
+  useEffect(() => {
+    if (showWelcome) {
+      const t = setTimeout(() => {
+        sessionStorage.setItem("de_welcomed", "1");
+        setShowWelcome(false);
+      }, 4500);
+      return () => clearTimeout(t);
+    }
+  }, [showWelcome]);
 
   const copyText = (text: string, key: string) => {
     navigator.clipboard.writeText(text).catch(() => {});
@@ -66,13 +94,13 @@ export default function HomePage() {
   return (
     <div className="bg-white">
       <style>{`
-        @keyframes fadeSlideUp {
-          from { opacity: 0; transform: translateY(32px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
         @keyframes pulseGlow {
           0%, 100% { box-shadow: 0 8px 0 #78350f, 0 14px 24px rgba(0,0,0,0.5), 0 0 0 0 rgba(253,186,116,0); }
           50% { box-shadow: 0 8px 0 #78350f, 0 14px 24px rgba(0,0,0,0.5), 0 0 24px 6px rgba(253,186,116,0.35); }
+        }
+        @keyframes heroImgGlow {
+          0%, 100% { box-shadow: 0 32px 80px rgba(0,0,0,0.6), 0 0 0 2px rgba(22,163,74,0.4), 0 0 30px rgba(22,163,74,0.15); }
+          50% { box-shadow: 0 32px 80px rgba(0,0,0,0.6), 0 0 0 2px rgba(22,163,74,0.7), 0 0 60px rgba(22,163,74,0.3); }
         }
         .anim-hero-badge { animation: fadeSlideUp 0.6s ease forwards; opacity: 0; animation-delay: 0.1s; }
         .anim-hero-h1 { animation: fadeSlideUp 0.7s ease forwards; opacity: 0; animation-delay: 0.25s; }
@@ -80,6 +108,10 @@ export default function HomePage() {
         .anim-hero-btns { animation: fadeSlideUp 0.7s ease forwards; opacity: 0; animation-delay: 0.55s; }
         .anim-hero-trust { animation: fadeSlideUp 0.7s ease forwards; opacity: 0; animation-delay: 0.7s; }
         .anim-hero-img { animation: fadeSlideUp 0.9s ease forwards; opacity: 0; animation-delay: 0.3s; }
+        .hero-img-glow {
+          animation: heroImgGlow 3s ease-in-out infinite;
+          border-radius: 20px;
+        }
         .btn-3d-green {
           background: #16a34a;
           color: white;
@@ -97,6 +129,7 @@ export default function HomePage() {
           gap: 8px;
           border: none;
           cursor: pointer;
+          font-family: 'Exo 2', sans-serif;
         }
         .btn-3d-green:hover { transform: translateY(4px); box-shadow: 0 4px 0 #064e3b, 0 6px 12px rgba(0,0,0,0.4); }
         .btn-3d-green:active { transform: translateY(7px); box-shadow: 0 1px 0 #064e3b, 0 2px 6px rgba(0,0,0,0.3); }
@@ -118,19 +151,322 @@ export default function HomePage() {
           gap: 8px;
           border: none;
           cursor: pointer;
+          font-family: 'Exo 2', sans-serif;
         }
         .btn-3d-white:hover { transform: translateY(4px); box-shadow: 0 4px 0 #78350f, 0 6px 12px rgba(0,0,0,0.4); animation: none; }
         .btn-3d-white:active { transform: translateY(7px); box-shadow: 0 1px 0 #78350f, 0 2px 6px rgba(0,0,0,0.3); }
         .text-3d-green {
-          font-size: clamp(2rem, 5vw, 3.5rem);
+          font-family: 'Orbitron', sans-serif;
+          font-size: clamp(1.6rem, 4vw, 3rem);
           font-weight: 900;
-          letter-spacing: 0.05em;
-          text-shadow: 2px 2px 0px #065f46, 4px 4px 0px #064e3b, 6px 6px 0px #022c22, 0 0 40px rgba(34,197,94,0.3);
+          letter-spacing: 0.08em;
+          text-shadow: 2px 2px 0px #065f46, 4px 4px 0px #064e3b, 6px 6px 0px #022c22, 0 0 40px rgba(34,197,94,0.4);
           line-height: 1;
+        }
+        .section-heading {
+          font-family: 'Exo 2', sans-serif;
+        }
+        .brand-text {
+          font-family: 'Orbitron', sans-serif;
+        }
+        .shimmer-text {
+          background: linear-gradient(90deg, #16a34a 0%, #4ade80 40%, #86efac 50%, #4ade80 60%, #16a34a 100%);
+          background-size: 200% auto;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          animation: shimmer 3s linear infinite;
         }
       `}</style>
 
-      {/* Hero */}
+      {/* ===== WELCOME SCREEN OVERLAY ===== */}
+      {showWelcome && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            background:
+              "linear-gradient(135deg, #020b02 0%, #050d05 50%, #0a1a0a 100%)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            animation: "welcomeFadeOut 0.8s ease 3.7s forwards",
+            overflow: "hidden",
+            pointerEvents: "none",
+          }}
+        >
+          {/* Particle dots */}
+          {Array.from({ length: 12 }, (_, i) => `particle-${i}`).map(
+            (pid, i) => (
+              <div
+                key={pid}
+                style={{
+                  position: "absolute",
+                  width: i % 3 === 0 ? "4px" : "2px",
+                  height: i % 3 === 0 ? "4px" : "2px",
+                  background: "#22c55e",
+                  borderRadius: "50%",
+                  left: `${(i * 8.5) % 100}%`,
+                  animation: `particleFloat ${2 + (i % 3)}s ease-in ${i * 0.2}s infinite`,
+                  opacity: 0.7,
+                }}
+              />
+            ),
+          )}
+
+          {/* Road strip with scrolling dashes */}
+          <div
+            style={{
+              position: "absolute",
+              bottom: "15%",
+              left: 0,
+              right: 0,
+              height: "80px",
+              background: "#1a1a1a",
+              borderTop: "3px solid #333",
+              borderBottom: "3px solid #333",
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                top: "50%",
+                transform: "translateY(-50%)",
+                left: 0,
+                right: 0,
+                height: "4px",
+                backgroundImage:
+                  "repeating-linear-gradient(90deg, #fbbf24 0px, #fbbf24 40px, transparent 40px, transparent 80px)",
+                animation: "roadScroll 0.4s linear infinite",
+              }}
+            />
+          </div>
+
+          {/* Animated Car SVG */}
+          <div
+            style={{
+              position: "absolute",
+              bottom: "calc(15% + 20px)",
+              animation:
+                "carEntrance 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both",
+            }}
+          >
+            <svg
+              width="200"
+              height="80"
+              viewBox="0 0 200 80"
+              fill="none"
+              aria-label="DriveEase car"
+            >
+              <title>DriveEase Car</title>
+              {/* Car body */}
+              <rect
+                x="20"
+                y="30"
+                width="160"
+                height="35"
+                rx="8"
+                fill="#16a34a"
+              />
+              {/* Car roof */}
+              <path d="M55 30 L75 10 L130 10 L150 30Z" fill="#15803d" />
+              {/* Windows */}
+              <rect
+                x="80"
+                y="13"
+                width="45"
+                height="14"
+                rx="2"
+                fill="#93c5fd"
+                opacity="0.8"
+              />
+              {/* Headlight */}
+              <ellipse cx="178" cy="47" rx="8" ry="5" fill="#fef9c3" />
+              <ellipse cx="178" cy="47" rx="5" ry="3" fill="#fbbf24" />
+              {/* Taillight */}
+              <rect x="22" y="42" width="12" height="8" rx="2" fill="#ef4444" />
+              {/* Wheel 1 */}
+              <circle cx="60" cy="65" r="13" fill="#111827" />
+              <circle cx="60" cy="65" r="7" fill="#374151" />
+              <circle
+                cx="60"
+                cy="65"
+                r="3"
+                fill="#9ca3af"
+                style={{ animation: "wheelSpin 0.5s linear infinite" }}
+              />
+              {/* Wheel 2 */}
+              <circle cx="145" cy="65" r="13" fill="#111827" />
+              <circle cx="145" cy="65" r="7" fill="#374151" />
+              <circle
+                cx="145"
+                cy="65"
+                r="3"
+                fill="#9ca3af"
+                style={{ animation: "wheelSpin 0.5s linear infinite" }}
+              />
+              {/* Speed lines */}
+              <line
+                x1="0"
+                y1="35"
+                x2="15"
+                y2="35"
+                stroke="#22c55e"
+                strokeWidth="2"
+                opacity="0.6"
+                style={{ animation: "speedLines 0.8s ease infinite" }}
+              />
+              <line
+                x1="0"
+                y1="45"
+                x2="12"
+                y2="45"
+                stroke="#22c55e"
+                strokeWidth="1.5"
+                opacity="0.4"
+                style={{ animation: "speedLines 0.8s ease 0.1s infinite" }}
+              />
+              <line
+                x1="0"
+                y1="55"
+                x2="18"
+                y2="55"
+                stroke="#22c55e"
+                strokeWidth="2"
+                opacity="0.5"
+                style={{ animation: "speedLines 0.8s ease 0.2s infinite" }}
+              />
+            </svg>
+          </div>
+
+          {/* DriveEase Logo Text - 3D Premium */}
+          <div
+            style={{
+              textAlign: "center",
+              marginBottom: "20px",
+            }}
+          >
+            <div
+              className="logo-3d-shimmer"
+              style={{
+                fontFamily: "Orbitron, sans-serif",
+                fontSize: "clamp(2.5rem, 8vw, 5rem)",
+                fontWeight: 900,
+                letterSpacing: "0.15em",
+                lineHeight: 1,
+                textShadow:
+                  "2px 2px 0 #065f46, 4px 4px 0 #064e3b, 6px 6px 0 #022c22, 8px 8px 0 #011a11, 0 0 60px rgba(34,197,94,0.8), 0 0 120px rgba(34,197,94,0.4)",
+                animation: "logoEntrance 0.8s ease forwards",
+                background:
+                  "linear-gradient(90deg, #22c55e 0%, #ffffff 30%, #4ade80 50%, #ffffff 70%, #22c55e 100%)",
+                backgroundSize: "200% auto",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              DRIVEEASE
+            </div>
+            <div
+              style={{
+                fontFamily: "Exo 2, sans-serif",
+                fontSize: "0.9rem",
+                color: "#4ade80",
+                letterSpacing: "0.3em",
+                textTransform: "uppercase",
+                marginTop: "12px",
+                opacity: 0,
+                animation: "fadeSlideUp 0.7s ease 0.5s forwards",
+              }}
+            >
+              India's First Personal Driver Network
+            </div>
+          </div>
+
+          {/* Loading bar */}
+          <div
+            style={{
+              width: "200px",
+              height: "3px",
+              background: "#1a2e1a",
+              borderRadius: "2px",
+              overflow: "hidden",
+              animation: "fadeSlideUp 0.5s ease 1s both",
+            }}
+          >
+            <div
+              style={{
+                height: "100%",
+                background: "linear-gradient(90deg, #16a34a, #4ade80, #16a34a)",
+                backgroundSize: "200% 100%",
+                animation: "shimmer 1s linear infinite",
+                width: "100%",
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ===== FLOATING CAR WIDGET (Desktop Only) ===== */}
+      <div
+        className="hidden md:block"
+        style={{
+          position: "fixed",
+          bottom: "80px",
+          right: "20px",
+          zIndex: 40,
+          animation: "floatUp 3s ease-in-out infinite",
+          cursor: "pointer",
+          filter: "drop-shadow(0 4px 12px rgba(22,163,74,0.4))",
+        }}
+        title="DriveEase - Book a Driver"
+      >
+        <svg
+          width="60"
+          height="35"
+          viewBox="0 0 60 35"
+          fill="none"
+          aria-label="DriveEase floating car"
+        >
+          <title>DriveEase Floating Car</title>
+          <rect x="5" y="12" width="50" height="16" rx="4" fill="#16a34a" />
+          <path d="M15 12 L22 4 L40 4 L47 12Z" fill="#15803d" />
+          <rect
+            x="24"
+            y="5"
+            width="14"
+            height="6"
+            rx="1"
+            fill="#bfdbfe"
+            opacity="0.9"
+          />
+          <ellipse cx="53" cy="20" rx="4" ry="3" fill="#fef9c3" />
+          <circle cx="18" cy="28" r="6" fill="#111827" />
+          <circle cx="18" cy="28" r="3" fill="#6b7280" />
+          <circle cx="44" cy="28" r="6" fill="#111827" />
+          <circle cx="44" cy="28" r="3" fill="#6b7280" />
+          <line
+            x1="0"
+            y1="16"
+            x2="4"
+            y2="16"
+            stroke="#4ade80"
+            strokeWidth="1.5"
+          />
+          <line
+            x1="0"
+            y1="20"
+            x2="3"
+            y2="20"
+            stroke="#4ade80"
+            strokeWidth="1"
+          />
+        </svg>
+      </div>
+
+      {/* ===== HERO SECTION ===== */}
       <section
         className="relative min-h-screen flex items-center overflow-hidden"
         style={{ background: "#0f172a" }}
@@ -139,7 +475,7 @@ export default function HomePage() {
           className="absolute inset-0 md:hidden"
           style={{
             backgroundImage:
-              "url('/assets/generated/hero-driver-3d.dim_1200x700.jpg')",
+              "url('/assets/generated/hero-driver-portrait.dim_600x800.jpg')",
             backgroundSize: "cover",
             backgroundPosition: "top center",
             filter: "blur(3px) brightness(0.4)",
@@ -168,7 +504,10 @@ export default function HomePage() {
                 India's First Personal Driver Network
               </Badge>
             </div>
-            <h1 className="anim-hero-h1 text-4xl sm:text-5xl md:text-6xl font-bold text-white leading-tight mb-5">
+            <h1
+              style={{ fontFamily: "Exo 2, sans-serif" }}
+              className="anim-hero-h1 text-4xl sm:text-5xl md:text-6xl font-bold text-white leading-tight mb-5"
+            >
               Book a Professional Driver
               <br />
               <span className="text-green-400">Anytime, Anywhere</span>
@@ -225,24 +564,22 @@ export default function HomePage() {
           <div className="hidden md:flex flex-1 items-center justify-center md:justify-end">
             <div className="anim-hero-img relative">
               <div
-                className="absolute -inset-4 rounded-3xl opacity-30"
+                className="absolute -inset-4 rounded-3xl opacity-40"
                 style={{
                   background:
                     "radial-gradient(ellipse at center, #16a34a 0%, transparent 70%)",
                 }}
               />
               <img
-                src="/assets/generated/hero-driver-3d.dim_1200x700.jpg"
+                src="/assets/generated/hero-driver-portrait.dim_600x800.jpg"
                 alt="Professional DriveEase driver standing by car"
-                className="relative rounded-2xl shadow-2xl object-cover"
+                className="relative hero-img-glow object-cover"
                 loading="eager"
                 style={{
-                  width: "480px",
-                  height: "580px",
+                  width: "440px",
+                  height: "560px",
                   objectFit: "cover",
-                  objectPosition: "top center",
-                  boxShadow:
-                    "0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(22,163,74,0.15)",
+                  objectPosition: "center top",
                 }}
               />
             </div>
@@ -250,10 +587,168 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Differentiators */}
+      {/* ===== NEON DIVIDER ===== */}
+      <NeonDivider />
+
+      {/* ===== ANIMATED CAR STRIP ===== */}
+      <div
+        style={{
+          background: "#0f1a0f",
+          overflow: "hidden",
+          height: "120px",
+          position: "relative",
+          borderTop: "2px solid #16a34a33",
+          borderBottom: "2px solid #16a34a33",
+        }}
+      >
+        {/* Road */}
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            transform: "translateY(-50%)",
+            left: 0,
+            right: 0,
+            height: "60px",
+            background: "#1c1c1c",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              transform: "translateY(-50%)",
+              left: 0,
+              right: 0,
+              height: "3px",
+              backgroundImage:
+                "repeating-linear-gradient(90deg, #fbbf24 0px, #fbbf24 30px, transparent 30px, transparent 60px)",
+              animation: "roadScroll 0.3s linear infinite",
+            }}
+          />
+        </div>
+
+        {/* Car 1 - green, drives left to right */}
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            transform: "translateY(-60%)",
+            animation: "carDrive 6s linear infinite",
+          }}
+        >
+          <svg
+            width="140"
+            height="55"
+            viewBox="0 0 140 55"
+            fill="none"
+            aria-label="Car 1"
+          >
+            <title>Car 1</title>
+            <rect x="15" y="22" width="110" height="24" rx="6" fill="#16a34a" />
+            <path d="M38 22 L52 8 L90 8 L105 22Z" fill="#15803d" />
+            <rect
+              x="56"
+              y="10"
+              width="30"
+              height="10"
+              rx="2"
+              fill="#bfdbfe"
+              opacity="0.9"
+            />
+            <ellipse cx="124" cy="34" rx="6" ry="4" fill="#fef3c7" />
+            <rect x="15" y="29" width="9" height="6" rx="1" fill="#fca5a5" />
+            <circle cx="42" cy="46" r="9" fill="#111827" />
+            <circle cx="42" cy="46" r="5" fill="#374151" />
+            <circle cx="100" cy="46" r="9" fill="#111827" />
+            <circle cx="100" cy="46" r="5" fill="#374151" />
+          </svg>
+        </div>
+
+        {/* Car 2 - blue, offset timing */}
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            transform: "translateY(-60%)",
+            animation: "carDrive 8s linear 3s infinite",
+          }}
+        >
+          <svg
+            width="120"
+            height="50"
+            viewBox="0 0 120 50"
+            fill="none"
+            aria-label="Car 2"
+          >
+            <title>Car 2</title>
+            <rect x="10" y="20" width="100" height="22" rx="5" fill="#1d4ed8" />
+            <path d="M32 20 L46 7 L78 7 L94 20Z" fill="#1e40af" />
+            <rect
+              x="50"
+              y="9"
+              width="25"
+              height="9"
+              rx="2"
+              fill="#bfdbfe"
+              opacity="0.9"
+            />
+            <ellipse cx="108" cy="31" rx="5" ry="3" fill="#fef3c7" />
+            <circle cx="36" cy="42" r="8" fill="#111827" />
+            <circle cx="36" cy="42" r="4" fill="#374151" />
+            <circle cx="88" cy="42" r="8" fill="#111827" />
+            <circle cx="88" cy="42" r="4" fill="#374151" />
+          </svg>
+        </div>
+
+        {/* Car 3 - red, another offset */}
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            transform: "translateY(-60%)",
+            animation: "carDrive 7s linear 5s infinite",
+          }}
+        >
+          <svg
+            width="130"
+            height="52"
+            viewBox="0 0 130 52"
+            fill="none"
+            aria-label="Car 3"
+          >
+            <title>Car 3</title>
+            <rect x="12" y="21" width="106" height="23" rx="6" fill="#dc2626" />
+            <path d="M35 21 L49 8 L85 8 L99 21Z" fill="#b91c1c" />
+            <rect
+              x="53"
+              y="10"
+              width="28"
+              height="9"
+              rx="2"
+              fill="#bfdbfe"
+              opacity="0.9"
+            />
+            <ellipse cx="116" cy="33" rx="6" ry="4" fill="#fef3c7" />
+            <rect x="12" y="28" width="9" height="6" rx="1" fill="#fca5a5" />
+            <circle cx="38" cy="44" r="8" fill="#111827" />
+            <circle cx="38" cy="44" r="4" fill="#374151" />
+            <circle cx="95" cy="44" r="8" fill="#111827" />
+            <circle cx="95" cy="44" r="4" fill="#374151" />
+          </svg>
+        </div>
+      </div>
+
+      {/* ===== NEON DIVIDER ===== */}
+      <NeonDivider />
+
+      {/* ===== DIFFERENTIATORS ===== */}
       <section className="py-16 px-4 bg-gray-50">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-2 text-gray-900">
+          <h2
+            style={{ fontFamily: "Exo 2, sans-serif" }}
+            className="text-3xl font-bold text-center mb-2 text-gray-900"
+          >
             The DriveEase Difference
           </h2>
           <p className="text-center text-gray-500 mb-10">
@@ -276,10 +771,16 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Sample Driver Card */}
+      {/* ===== NEON DIVIDER ===== */}
+      <NeonDivider />
+
+      {/* ===== SAMPLE DRIVER CARD ===== */}
       <section className="py-16 px-4 bg-white">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-2 text-gray-900">
+          <h2
+            style={{ fontFamily: "Exo 2, sans-serif" }}
+            className="text-3xl font-bold text-center mb-2 text-gray-900"
+          >
             Know Your Driver Before They Arrive
           </h2>
           <p className="text-center text-gray-500 mb-10">
@@ -383,10 +884,13 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Family Section */}
+      {/* ===== FAMILY SECTION ===== */}
       <section className="py-16 px-4 bg-green-50">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl font-bold mb-3 text-gray-900">
+          <h2
+            style={{ fontFamily: "Exo 2, sans-serif" }}
+            className="text-3xl font-bold mb-3 text-gray-900"
+          >
             One Family. One Account. Total Peace of Mind.
           </h2>
           <p className="text-gray-600 mb-8">
@@ -416,10 +920,16 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* How It Works */}
+      {/* ===== NEON DIVIDER ===== */}
+      <NeonDivider />
+
+      {/* ===== HOW IT WORKS ===== */}
       <section className="py-16 px-4 bg-white">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-10 text-gray-900">
+          <h2
+            style={{ fontFamily: "Exo 2, sans-serif" }}
+            className="text-3xl font-bold text-center mb-10 text-gray-900"
+          >
             How It Works
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -443,10 +953,16 @@ export default function HomePage() {
               ] as const
             ).map((s) => (
               <div key={s.step} className="text-center">
-                <div className="text-5xl font-black text-green-100 mb-2">
+                <div
+                  className="text-5xl font-black text-green-100 mb-2"
+                  style={{ fontFamily: "Orbitron, sans-serif" }}
+                >
                   {s.step}
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">
+                <h3
+                  style={{ fontFamily: "Exo 2, sans-serif" }}
+                  className="text-lg font-bold text-gray-900 mb-2"
+                >
                   {s.title}
                 </h3>
                 <p className="text-gray-500 text-sm">{s.desc}</p>
@@ -456,13 +972,16 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Brand Ambassador Section */}
+      {/* ===== BRAND AMBASSADOR ===== */}
       <section className="py-16 px-4" style={{ background: "#0f172a" }}>
         <div className="max-w-3xl mx-auto text-center">
           <Badge className="bg-green-600/20 text-green-400 border border-green-600/40 mb-4 text-xs tracking-widest uppercase px-3 py-1">
             Brand Ambassador
           </Badge>
-          <h2 className="text-3xl font-bold text-white mb-8">
+          <h2
+            style={{ fontFamily: "Exo 2, sans-serif" }}
+            className="text-3xl font-bold text-white mb-8"
+          >
             Our Brand Ambassador
           </h2>
           <Card className="bg-gray-800 border-gray-700 shadow-2xl max-w-sm mx-auto">
@@ -490,13 +1009,16 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Customer Support Section */}
+      {/* ===== CUSTOMER SUPPORT ===== */}
       <section className="py-12 px-4 bg-green-50">
         <div className="max-w-2xl mx-auto text-center">
           <Badge className="bg-green-600 text-white mb-4 text-xs px-3 py-1">
             24/7 Support
           </Badge>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          <h2
+            style={{ fontFamily: "Exo 2, sans-serif" }}
+            className="text-2xl font-bold text-gray-900 mb-2"
+          >
             Need Help? Contact Us Directly
           </h2>
           <p className="text-gray-500 text-sm mb-6">
@@ -566,14 +1088,17 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* How We Create Value Section */}
+      {/* ===== HOW WE CREATE VALUE ===== */}
       <section className="py-16 px-4 bg-white">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-10">
             <Badge className="bg-green-100 text-green-700 mb-3 text-xs px-3 py-1">
               Business Model
             </Badge>
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">
+            <h2
+              style={{ fontFamily: "Exo 2, sans-serif" }}
+              className="text-3xl font-bold text-gray-900 mb-2"
+            >
               How We Create Value
             </h2>
             <p className="text-gray-500">
@@ -618,7 +1143,10 @@ export default function HomePage() {
                 <CardContent className="pt-6 pb-5">
                   <div className="text-3xl mb-3">{item.icon}</div>
                   <div className="flex items-baseline gap-1 mb-2">
-                    <span className="text-2xl font-black text-green-600">
+                    <span
+                      className="text-2xl font-black text-green-600"
+                      style={{ fontFamily: "Orbitron, sans-serif" }}
+                    >
                       {item.highlight}
                     </span>
                     <span className="text-xs text-gray-400">{item.label}</span>
@@ -636,14 +1164,20 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Why Trust DriveEase Section */}
+      {/* ===== NEON DIVIDER ===== */}
+      <NeonDivider />
+
+      {/* ===== WHY TRUST DRIVEEASE ===== */}
       <section className="py-16 px-4 bg-gray-900">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-10">
             <Badge className="bg-green-600/20 text-green-400 border border-green-600/40 mb-3 text-xs px-3 py-1">
               Safety First
             </Badge>
-            <h2 className="text-3xl font-bold text-white mb-2">
+            <h2
+              style={{ fontFamily: "Exo 2, sans-serif" }}
+              className="text-3xl font-bold text-white mb-2"
+            >
               Why Trust DriveEase?
             </h2>
             <p className="text-gray-400">
@@ -686,7 +1220,10 @@ export default function HomePage() {
                     <div className="text-3xl flex-shrink-0">{item.icon}</div>
                     <div>
                       <div className="flex items-center gap-2 mb-1.5">
-                        <h3 className="font-bold text-white text-base">
+                        <h3
+                          style={{ fontFamily: "Exo 2, sans-serif" }}
+                          className="font-bold text-white text-base"
+                        >
                           {item.title}
                         </h3>
                         <Badge className="bg-green-600/20 text-green-400 border border-green-600/30 text-xs px-2 py-0">
@@ -705,11 +1242,14 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Payment Section */}
+      {/* ===== PAYMENT SECTION ===== */}
       <section className="py-16 px-4 bg-gray-50">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">
+            <h2
+              style={{ fontFamily: "Exo 2, sans-serif" }}
+              className="text-3xl font-bold text-gray-900 mb-2"
+            >
               Easy Payment Options
             </h2>
             <p className="text-gray-500">
@@ -794,7 +1334,7 @@ export default function HomePage() {
                   <div className="text-left">
                     <p className="font-bold text-purple-800">PhonePe / UPI</p>
                     <p className="text-xs text-gray-500">
-                      Scan & Pay instantly
+                      Scan &amp; Pay instantly
                     </p>
                   </div>
                 </div>
@@ -805,7 +1345,7 @@ export default function HomePage() {
                   style={{ maxWidth: "220px" }}
                 />
                 <p className="text-sm font-semibold text-gray-700 mb-1">
-                  Scan & Pay via PhonePe
+                  Scan &amp; Pay via PhonePe
                 </p>
                 <p className="text-xs text-gray-500">
                   After payment, send screenshot to WhatsApp for confirmation
@@ -824,7 +1364,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Emergency Banner */}
+      {/* ===== EMERGENCY BANNER ===== */}
       <section className="bg-red-600 text-white py-6 px-4">
         <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">

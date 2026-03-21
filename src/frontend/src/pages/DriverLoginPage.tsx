@@ -16,6 +16,7 @@ import {
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import CarAnimationStrip from "../components/CarAnimationStrip";
 import RouteMap from "../components/RouteMap";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -686,6 +687,7 @@ export default function DriverLoginPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <CarAnimationStrip />
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-4">
         <div className="max-w-2xl mx-auto flex items-center justify-between">

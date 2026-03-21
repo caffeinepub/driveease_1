@@ -1,33 +1,27 @@
-# DriveEase - Admin Panel Fix + Contact Update
+# DriveEase
 
 ## Current State
-Admin panel (/admin, password: 126312) has all tabs: bookings, drivers, registrations, customers, enquiries, live-drivers, driver-earnings, pricing, kyc, settings. Backend has custom stable functions: saveBooking, getAllBookings, saveRegistration, getAllRegistrations, saveOtpLogin, getAllOtpLogins, saveEnquiry, getAllEnquiries, setDriverOnlineStatus, getDriverOnlineStatuses, getOnlineDrivers. backendApi.ts wraps these calls. Data loading uses apiGetBookings, apiGetRegistrations, apiGetOtpLogins, apiGetEnquiries, apiGetAllDriverStatuses.
-
-Drivers tab derives `allDriverRows` from `registrations` state. If registrations backend call fails, drivers tab is empty. All tabs show empty if backend sync fails.
+- Homepage has a full-screen welcome screen overlay (3.5s duration, fades out) with animated car driving, road strip, particle dots, and neon DRIVEEASE logo in Orbitron font
+- Homepage has animated racing car strip between sections, floating car widget
+- LiveDriversPage and DriverLoginPage do NOT have any car animation or welcome overlay
+- Welcome screen only appears once per session (sessionStorage flag)
 
 ## Requested Changes (Diff)
 
 ### Add
-- Contact info (+91-7836887228, Krishnalivekeeping01@gmail.com) in Footer and any ContactPage
-- Visible error state in admin when sync fails (show reason)
-- Auto-load on admin login (call loadAll immediately on auth)
-- "Retry" button if sync fails with error message
+- Car animation strip (same racing cars as homepage) on LiveDriversPage and DriverLoginPage — shown as a header accent or section divider at the top
+- 3D animated DriveEase logo on the welcome screen: large DRIVEEASE text using Orbitron font with 3D text-shadow layering, neon green glow, shimmer effect, and scale-in animation
+- Welcome screen duration changed from 3.5s to 4.5s (animation fade starts at 3.7s)
 
 ### Modify
-- backendApi.ts: improve error handling, log actual errors to console, ensure all 5 API calls work
-- AdminDashboard: fix loadAll to auto-trigger on mount after auth, show loading spinner until data arrives, show error message if backend fails
-- AdminDashboard: fix Drivers tab - also include any locally-cached driver data if backend returns empty
-- AdminDashboard: fix Live Drivers tab - show all drivers from backend, display online/offline badge, Book Now button
-- AdminDashboard: fix KYC tab - list registrations with document view
-- Footer.tsx: update contact section with phone +91-7836887228 and email Krishnalivekeeping01@gmail.com
-- All API calls in admin must properly await actor methods; if actor method doesn't exist, fallback gracefully
+- Welcome screen: replace or enhance the existing logo/title with a 3D animated version — multiple stacked text-shadows to create depth, green shimmer gradient animation, scale bounce entrance
+- LiveDriversPage: add a compact animated car strip (2 cars racing) at the very top of the page content below the navbar
+- DriverLoginPage: add a compact animated car strip at the top of the page below the navbar
 
 ### Remove
-- Nothing
+- Nothing removed
 
 ## Implementation Plan
-1. Update Footer.tsx with correct contact phone and email
-2. Update backendApi.ts to log errors clearly and improve fallback
-3. Update AdminDashboard: auto-sync on login, show loading/error state clearly, fix Drivers tab data source, fix Live Drivers data display
-4. Ensure KYC tab shows registration list with document viewing
-5. Ensure registrations tab shows payment screenshot and details
+1. In HomePage.tsx: update welcome screen timer from 3500ms to 4500ms, update fadeOut animation delay from 3s to 3.7s; enhance the DriveEase logo section with a 3D Orbitron text with stacked shadows, shimmer gradient, and scale-bounce keyframe
+2. Extract a reusable `CarAnimationStrip` component (or inline) into a shared file `src/frontend/src/components/CarAnimationStrip.tsx` with the racing cars CSS animation
+3. Import and render `CarAnimationStrip` at the top of LiveDriversPage and DriverLoginPage

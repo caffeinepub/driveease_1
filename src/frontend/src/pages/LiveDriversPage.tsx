@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import CarAnimationStrip from "../components/CarAnimationStrip";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -218,6 +219,7 @@ export default function LiveDriversPage() {
 
   return (
     <div className="min-h-screen bg-white">
+      <CarAnimationStrip />
       {/* Hero Header */}
       <div className="bg-gradient-to-br from-green-50 to-white border-b border-green-100">
         <div className="max-w-7xl mx-auto px-4 py-12 text-center">
