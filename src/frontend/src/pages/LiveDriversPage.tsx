@@ -112,15 +112,15 @@ function ShareLinkButton() {
     <button
       type="button"
       onClick={copyLink}
-      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-mono font-semibold border transition-all ${
+      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border transition-all ${
         copied
-          ? "bg-[#00ff88]/20 border-[#00ff88]/50 text-[#00ff88]"
-          : "bg-black/40 border-[#00ff88]/20 text-[#00ff88] hover:border-[#00ff88]/60 hover:shadow-[0_0_12px_rgba(0,255,136,0.2)]"
+          ? "bg-green-50 border-green-400 text-green-700"
+          : "bg-white border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-700"
       }`}
       data-ocid="live_drivers.share_button"
     >
       <Copy size={14} />
-      {copied ? "LINK COPIED" : "SHARE LINK"}
+      {copied ? "Link Copied!" : "Share Link"}
     </button>
   );
 }
@@ -217,249 +217,133 @@ export default function LiveDriversPage() {
   const onlineCount = drivers.filter((d) => d.isOnline).length;
 
   return (
-    <div
-      className="min-h-screen relative overflow-x-hidden"
-      style={{
-        background: "#000a05",
-        backgroundImage:
-          "linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px)",
-        backgroundSize: "40px 40px",
-      }}
-    >
-      {/* Ambient glow orbs */}
-      <div
-        className="pointer-events-none absolute top-0 left-1/4 w-96 h-96 rounded-full opacity-10"
-        style={{
-          background: "radial-gradient(circle, #00ff88 0%, transparent 70%)",
-          filter: "blur(60px)",
-          transform: "translate(-50%, -30%)",
-        }}
-      />
-      <div
-        className="pointer-events-none absolute top-40 right-0 w-64 h-64 rounded-full opacity-8"
-        style={{
-          background: "radial-gradient(circle, #00d4ff 0%, transparent 70%)",
-          filter: "blur(80px)",
-        }}
-      />
-
+    <div className="min-h-screen bg-white">
       {/* Hero Header */}
-      <div className="relative overflow-hidden">
-        {/* Scanline animation */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              "linear-gradient(to bottom, transparent 0%, rgba(0,255,136,0.015) 50%, transparent 100%)",
-            backgroundSize: "100% 4px",
-            animation: "scanline 8s linear infinite",
-          }}
-        />
-        <style>{`
-          @keyframes scanline {
-            0% { background-position: 0 -100vh; }
-            100% { background-position: 0 100vh; }
-          }
-          @keyframes neon-pulse {
-            0%, 100% { opacity: 1; text-shadow: 0 0 10px #00ff88, 0 0 20px #00ff88, 0 0 40px #00ff88; }
-            50% { opacity: 0.85; text-shadow: 0 0 5px #00ff88, 0 0 10px #00ff88; }
-          }
-          @keyframes blink-dot {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.2; }
-          }
-        `}</style>
-
-        <div
-          className="py-16 px-4 text-center"
-          style={{
-            background: "linear-gradient(180deg, #001208 0%, #000a05 100%)",
-            borderBottom: "1px solid rgba(0,255,136,0.1)",
-          }}
-        >
+      <div className="bg-gradient-to-br from-green-50 to-white border-b border-green-100">
+        <div className="max-w-7xl mx-auto px-4 py-12 text-center">
           {/* LIVE badge */}
-          <div className="inline-flex items-center gap-2 mb-6">
-            <span
-              className="text-xs font-mono font-black px-3 py-1 rounded border"
-              style={{
-                background: "rgba(0,255,136,0.1)",
-                border: "1px solid #00ff88",
-                color: "#00ff88",
-                animation: "neon-pulse 2s ease-in-out infinite",
-              }}
-            >
-              ● LIVE FEED
+          <div className="inline-flex items-center gap-2 mb-4">
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-green-100 text-green-700 border border-green-200">
+              <span
+                className="w-2 h-2 rounded-full bg-green-500"
+                style={{ animation: "blink-dot 1.2s ease-in-out infinite" }}
+              />
+              LIVE
             </span>
           </div>
 
-          <h1
-            className="text-5xl md:text-6xl font-black font-mono mb-3 tracking-tight"
-            style={{
-              color: "#ffffff",
-              textShadow: "0 0 30px rgba(0,255,136,0.3)",
-              letterSpacing: "-0.02em",
-            }}
-          >
-            LIVE DRIVER
-            <span
-              style={{
-                display: "block",
-                color: "#00ff88",
-                textShadow: "0 0 20px #00ff88, 0 0 40px #00ff88",
-              }}
-            >
-              NETWORK
-            </span>
-          </h1>
+          <style>{`
+            @keyframes blink-dot {
+              0%, 100% { opacity: 1; }
+              50% { opacity: 0.2; }
+            }
+          `}</style>
 
-          <p className="text-sm font-mono mb-6" style={{ color: "#4ade80" }}>
-            ALL VERIFIED DRIVEEASE DRIVERS ACROSS INDIA
+          <h1
+            className="text-4xl md:text-5xl font-black text-gray-900 mb-3"
+            style={{ fontFamily: "Bricolage Grotesque, sans-serif" }}
+          >
+            Live Driver Network
+          </h1>
+          <p className="text-gray-500 text-base mb-6">
+            All verified DriveEase drivers across India
           </p>
 
           {/* Stats row */}
-          <div className="flex items-center justify-center gap-6 flex-wrap">
-            <div
-              className="font-mono text-sm px-4 py-2 rounded border"
-              style={{
-                background: "rgba(0,0,0,0.5)",
-                border: "1px solid rgba(0,255,136,0.2)",
-                color: "#86efac",
-              }}
-            >
-              <span className="text-white font-bold text-lg">
+          <div className="flex items-center justify-center gap-4 flex-wrap">
+            <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-full border border-gray-200 shadow-sm">
+              <span className="text-xl font-bold text-gray-900">
                 {drivers.length}
-              </span>{" "}
-              TOTAL
+              </span>
+              <span className="text-sm text-gray-500">Total Drivers</span>
             </div>
-            <div
-              className="font-mono text-sm px-4 py-2 rounded border flex items-center gap-2"
-              style={{
-                background: "rgba(0,255,136,0.05)",
-                border: "1px solid rgba(0,255,136,0.4)",
-                color: "#00ff88",
-              }}
-            >
+            <div className="flex items-center gap-2 px-4 py-2 bg-green-50 rounded-full border border-green-200">
               <span
-                className="w-2 h-2 rounded-full bg-[#00ff88]"
-                style={{ animation: "blink-dot 1s ease-in-out infinite" }}
+                className="w-2.5 h-2.5 rounded-full bg-green-500"
+                style={{ animation: "blink-dot 1.2s ease-in-out infinite" }}
               />
-              <span className="font-bold text-lg">{onlineCount}</span> ONLINE
+              <span className="text-xl font-bold text-green-700">
+                {onlineCount}
+              </span>
+              <span className="text-sm text-green-600">Online Now</span>
             </div>
-            <div
-              className="font-mono text-xs px-4 py-2 rounded border"
-              style={{
-                background: "rgba(0,0,0,0.5)",
-                border: "1px solid rgba(0,255,136,0.15)",
-                color: "#4ade80",
-              }}
-            >
-              SYNC: {secsAgo}s AGO
+            <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-full border border-gray-200 shadow-sm">
+              <Zap size={14} className="text-yellow-500" />
+              <span className="text-sm text-gray-500">
+                Updated {secsAgo < 5 ? "just now" : `${secsAgo}s ago`}
+              </span>
             </div>
           </div>
-
-          {customerCity && (
-            <p className="mt-4 font-mono text-sm" style={{ color: "#00d4ff" }}>
-              ◈ LOCATION LOCKED: <strong>{customerCity.toUpperCase()}</strong>
-            </p>
-          )}
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Filter tabs */}
-        <div className="flex gap-3 mb-5 flex-wrap items-center">
+      {/* Content */}
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Filter bar */}
+        <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-6 flex flex-wrap gap-3 items-center shadow-sm">
           <button
             type="button"
             onClick={() => setStatusFilter("all")}
-            className="px-4 py-2 rounded text-sm font-mono font-semibold transition-all"
-            style={{
-              background:
-                statusFilter === "all" ? "#00ff88" : "rgba(0,255,136,0.05)",
-              border:
-                statusFilter === "all"
-                  ? "1px solid #00ff88"
-                  : "1px solid rgba(0,255,136,0.2)",
-              color: statusFilter === "all" ? "#000" : "#00ff88",
-              boxShadow:
-                statusFilter === "all"
-                  ? "0 0 20px rgba(0,255,136,0.4)"
-                  : "none",
-            }}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-all ${
+              statusFilter === "all"
+                ? "bg-green-600 text-white border-green-600"
+                : "bg-white text-gray-600 border-gray-200 hover:border-green-400"
+            }`}
             data-ocid="live_drivers.tab"
           >
-            ALL ({drivers.length})
+            All ({drivers.length})
           </button>
           <button
             type="button"
             onClick={() => setStatusFilter("online")}
-            className="flex items-center gap-2 px-4 py-2 rounded text-sm font-mono font-semibold transition-all"
-            style={{
-              background:
-                statusFilter === "online" ? "#00ff88" : "rgba(0,255,136,0.05)",
-              border:
-                statusFilter === "online"
-                  ? "1px solid #00ff88"
-                  : "1px solid rgba(0,255,136,0.2)",
-              color: statusFilter === "online" ? "#000" : "#00ff88",
-              boxShadow:
-                statusFilter === "online"
-                  ? "0 0 20px rgba(0,255,136,0.4)"
-                  : "none",
-            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border transition-all ${
+              statusFilter === "online"
+                ? "bg-green-600 text-white border-green-600"
+                : "bg-white text-gray-600 border-gray-200 hover:border-green-400"
+            }`}
             data-ocid="live_drivers.tab"
           >
             <span
-              className="w-2 h-2 rounded-full bg-[#00ff88]"
-              style={{ animation: "blink-dot 1s ease-in-out infinite" }}
+              className="w-2 h-2 rounded-full bg-green-400"
+              style={
+                statusFilter === "online"
+                  ? { animation: "blink-dot 1s ease-in-out infinite" }
+                  : {}
+              }
             />
-            ONLINE ({onlineCount})
+            Online ({onlineCount})
           </button>
           <div className="ml-auto flex items-center gap-2">
             <Button
               onClick={refresh}
               disabled={loading}
               size="sm"
-              className="font-mono text-xs"
-              style={{
-                background: "rgba(0,255,136,0.1)",
-                border: "1px solid rgba(0,255,136,0.3)",
-                color: "#00ff88",
-              }}
+              variant="outline"
+              className="text-green-700 border-green-200 hover:bg-green-50"
               data-ocid="live_drivers.primary_button"
             >
               <RefreshCw
                 size={14}
                 className={`mr-1 ${loading ? "animate-spin" : ""}`}
               />
-              REFRESH
+              Refresh
             </Button>
             <ShareLinkButton />
           </div>
         </div>
 
         {/* Filters */}
-        <div
-          className="rounded-xl p-4 mb-6 flex flex-wrap gap-3 items-center"
-          style={{
-            background: "rgba(0,255,136,0.03)",
-            border: "1px solid rgba(0,255,136,0.1)",
-          }}
-        >
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6 flex flex-wrap gap-3 items-center">
           <select
             value={stateFilter}
             onChange={(e) => {
               setStateFilter(e.target.value);
               setCityFilter("");
             }}
-            className="flex-1 min-w-[160px] px-3 py-2 rounded text-sm font-mono focus:outline-none"
-            style={{
-              background: "rgba(0,0,0,0.6)",
-              border: "1px solid rgba(0,255,136,0.2)",
-              color: "#86efac",
-            }}
+            className="flex-1 min-w-[160px] px-3 py-2 rounded-lg text-sm bg-white border border-gray-200 text-gray-700 focus:outline-none focus:border-green-400"
             data-ocid="live_drivers.select"
           >
-            <option value="">ALL STATES</option>
+            <option value="">All States</option>
             {INDIA_STATES.map((s) => (
               <option key={s.name} value={s.name}>
                 {s.name}
@@ -470,19 +354,13 @@ export default function LiveDriversPage() {
           <div className="relative flex-1 min-w-[160px]">
             <Search
               size={14}
-              className="absolute left-3 top-1/2 -translate-y-1/2"
-              style={{ color: "#00ff88" }}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
             />
             <Input
               placeholder="Search city..."
               value={cityFilter}
               onChange={(e) => setCityFilter(e.target.value)}
-              className="pl-8 font-mono text-sm"
-              style={{
-                background: "rgba(0,0,0,0.6)",
-                border: "1px solid rgba(0,255,136,0.2)",
-                color: "#86efac",
-              }}
+              className="pl-8 bg-white border-gray-200 text-gray-700"
               data-ocid="live_drivers.search_input"
             />
           </div>
@@ -491,30 +369,24 @@ export default function LiveDriversPage() {
             type="button"
             onClick={detectCity}
             disabled={detectingLocation}
-            className="flex items-center gap-1.5 px-3 py-2 rounded text-xs font-mono transition-all"
-            style={{
-              background: "rgba(0,212,255,0.08)",
-              border: "1px solid rgba(0,212,255,0.3)",
-              color: "#00d4ff",
-            }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 transition-all"
             data-ocid="live_drivers.toggle"
           >
             {detectingLocation ? (
               <RefreshCw size={12} className="animate-spin" />
             ) : (
-              "◈"
+              <MapPin size={12} />
             )}
-            LOCATE
+            Locate Me
           </button>
 
           {cityFilter && (
             <button
               type="button"
               onClick={() => setCityFilter("")}
-              className="text-xs font-mono underline"
-              style={{ color: "#4ade80" }}
+              className="text-xs text-green-600 underline hover:text-green-800"
             >
-              CLEAR
+              Clear
             </button>
           )}
         </div>
@@ -525,47 +397,29 @@ export default function LiveDriversPage() {
             className="text-center py-24"
             data-ocid="live_drivers.loading_state"
           >
-            <div
-              className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center"
-              style={{
-                border: "2px solid #00ff88",
-                boxShadow: "0 0 20px rgba(0,255,136,0.3)",
-              }}
-            >
-              <RefreshCw
-                size={28}
-                style={{ color: "#00ff88" }}
-                className="animate-spin"
-              />
+            <div className="w-16 h-16 rounded-full border-2 border-green-200 mx-auto mb-4 flex items-center justify-center">
+              <RefreshCw size={28} className="text-green-600 animate-spin" />
             </div>
-            <p className="font-mono text-sm" style={{ color: "#00ff88" }}>
-              SCANNING NETWORK...
-            </p>
+            <p className="text-gray-500 text-sm">Loading drivers...</p>
           </div>
         ) : filtered.length === 0 ? (
           <div
             className="text-center py-24"
             data-ocid="live_drivers.empty_state"
           >
-            <div
-              className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center"
-              style={{
-                background: "rgba(0,255,136,0.05)",
-                border: "1px solid rgba(0,255,136,0.2)",
-              }}
-            >
-              <MapPin size={32} style={{ color: "#00ff88" }} />
+            <div className="w-20 h-20 rounded-full bg-green-50 border border-green-100 mx-auto mb-4 flex items-center justify-center">
+              <MapPin size={32} className="text-green-400" />
             </div>
-            <h3 className="text-xl font-mono font-bold text-white mb-2">
+            <h3 className="text-xl font-bold text-gray-800 mb-2">
               {statusFilter === "online"
-                ? "NO DRIVERS ONLINE"
-                : "NO DRIVERS FOUND"}
+                ? "No Drivers Online"
+                : "No Drivers Found"}
             </h3>
-            <p className="font-mono text-sm" style={{ color: "#4ade80" }}>
+            <p className="text-gray-500 text-sm">
               {cityFilter
-                ? `No drivers in ${cityFilter.toUpperCase()}. Try clearing filter.`
+                ? `No drivers in ${cityFilter}. Try clearing the filter.`
                 : statusFilter === "online"
-                  ? "Switch to ALL to see everyone registered."
+                  ? "Switch to All to see everyone registered."
                   : "Drivers appear once registered and approved."}
             </p>
           </div>
@@ -584,66 +438,26 @@ export default function LiveDriversPage() {
                     transition={{ delay: i * 0.05 }}
                     data-ocid={`live_drivers.item.${i + 1}`}
                   >
-                    <div
-                      className="rounded-xl overflow-hidden transition-all duration-300 group cursor-pointer"
-                      style={{
-                        background: "rgba(5,14,7,0.8)",
-                        border: "1px solid rgba(0,255,136,0.15)",
-                      }}
-                      onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLDivElement).style.border =
-                          "1px solid rgba(0,255,136,0.6)";
-                        (e.currentTarget as HTMLDivElement).style.boxShadow =
-                          "0 0 20px rgba(0,255,136,0.12)";
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLDivElement).style.border =
-                          "1px solid rgba(0,255,136,0.15)";
-                        (e.currentTarget as HTMLDivElement).style.boxShadow =
-                          "none";
-                      }}
-                    >
+                    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:border-green-300 hover:shadow-md transition-all duration-200">
                       {/* City match banner */}
                       {isSameCity && (
-                        <div
-                          className="px-4 py-1.5 flex items-center gap-2 text-xs font-mono"
-                          style={{
-                            background: "rgba(0,212,255,0.08)",
-                            borderBottom: "1px solid rgba(0,212,255,0.2)",
-                            color: "#00d4ff",
-                          }}
-                        >
+                        <div className="px-4 py-1.5 flex items-center gap-2 text-xs font-semibold bg-blue-50 border-b border-blue-100 text-blue-700">
                           <CheckCircle size={11} />
-                          CITY MATCHED
+                          Matches your city
                         </div>
                       )}
 
                       {/* Card header */}
-                      <div
-                        className="p-4"
-                        style={{ background: "rgba(0,18,8,0.6)" }}
-                      >
+                      <div className="p-4 bg-gradient-to-r from-green-50 to-white">
                         <div className="flex items-center gap-3">
                           <div className="relative">
-                            <div
-                              className="w-14 h-14 rounded-full flex items-center justify-center font-black text-xl"
-                              style={{
-                                background: "rgba(0,255,136,0.1)",
-                                border: "2px solid rgba(0,255,136,0.4)",
-                                color: "#00ff88",
-                                fontFamily: "monospace",
-                              }}
-                            >
+                            <div className="w-14 h-14 rounded-full bg-green-100 border-2 border-green-200 flex items-center justify-center font-bold text-xl text-green-700">
                               {d.name.charAt(0)}
                             </div>
                             <span
-                              className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2"
+                              className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white"
                               style={{
-                                borderColor: "#000a05",
-                                background: d.isOnline ? "#00ff88" : "#4b5563",
-                                boxShadow: d.isOnline
-                                  ? "0 0 8px rgba(0,255,136,0.8)"
-                                  : "none",
+                                background: d.isOnline ? "#22c55e" : "#9ca3af",
                                 animation: d.isOnline
                                   ? "blink-dot 1.5s ease-in-out infinite"
                                   : "none",
@@ -652,50 +466,33 @@ export default function LiveDriversPage() {
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                              <span className="text-white font-bold">
+                              <span className="text-gray-900 font-bold">
                                 {d.name}
                               </span>
                               {d.isVerified && (
-                                <span
-                                  className="text-xs font-mono px-1.5 py-0.5 rounded"
-                                  style={{
-                                    background: "rgba(0,255,136,0.1)",
-                                    border: "1px solid rgba(0,255,136,0.3)",
-                                    color: "#00ff88",
-                                  }}
-                                >
-                                  ✓ VRF
-                                </span>
+                                <Badge className="text-xs bg-green-50 text-green-700 border border-green-200 font-normal px-1.5">
+                                  ✓ Verified
+                                </Badge>
                               )}
                             </div>
                             {d.isOnline ? (
-                              <span
-                                className="inline-flex items-center gap-1 text-xs font-mono font-bold"
-                                style={{ color: "#00ff88" }}
-                              >
+                              <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-600">
                                 <span
-                                  className="w-1.5 h-1.5 rounded-full bg-[#00ff88]"
+                                  className="w-1.5 h-1.5 rounded-full bg-green-500"
                                   style={{
                                     animation:
                                       "blink-dot 1s ease-in-out infinite",
-                                    boxShadow: "0 0 4px #00ff88",
                                   }}
                                 />
-                                ONLINE
+                                Online
                               </span>
                             ) : (
-                              <span
-                                className="inline-flex items-center gap-1 text-xs font-mono"
-                                style={{ color: "#6b7280" }}
-                              >
-                                <span className="w-1.5 h-1.5 rounded-full bg-gray-600 inline-block" />
-                                OFFLINE
+                              <span className="inline-flex items-center gap-1 text-xs text-gray-400">
+                                <span className="w-1.5 h-1.5 rounded-full bg-gray-300 inline-block" />
+                                Offline
                               </span>
                             )}
-                            <div
-                              className="flex items-center gap-1 text-xs mt-0.5 font-mono"
-                              style={{ color: "#4ade80" }}
-                            >
+                            <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
                               <MapPin size={10} />
                               {d.city}
                               {d.state ? `, ${d.state}` : ""}
@@ -715,29 +512,20 @@ export default function LiveDriversPage() {
                                 className={
                                   s <= Math.round(d.rating)
                                     ? "fill-yellow-400 text-yellow-400"
-                                    : "text-gray-700"
+                                    : "text-gray-200"
                                 }
                               />
                             ))}
-                            <span
-                              className="text-xs font-mono ml-1"
-                              style={{ color: "#6b7280" }}
-                            >
+                            <span className="text-xs text-gray-400 ml-1">
                               {d.rating.toFixed(1)}
                             </span>
                           </div>
-                          <span
-                            className="text-sm font-mono font-bold"
-                            style={{ color: "#00ff88" }}
-                          >
+                          <span className="text-sm font-bold text-green-700">
                             ₹{d.pricePerDay.toLocaleString()}/day
                           </span>
                         </div>
 
-                        <div
-                          className="flex items-center gap-3 text-xs font-mono"
-                          style={{ color: "#4ade80" }}
-                        >
+                        <div className="flex items-center gap-3 text-xs text-gray-500">
                           <span className="flex items-center gap-1">
                             <Clock size={10} />
                             {d.experienceYears}yr exp
@@ -746,10 +534,7 @@ export default function LiveDriversPage() {
                         </div>
 
                         {d.languages.length > 0 && (
-                          <div
-                            className="flex items-center gap-1 text-xs font-mono"
-                            style={{ color: "#4ade80" }}
-                          >
+                          <div className="flex items-center gap-1 text-xs text-gray-500">
                             <Languages size={10} />
                             {d.languages.join(", ")}
                           </div>
@@ -759,28 +544,18 @@ export default function LiveDriversPage() {
                           <button
                             type="button"
                             onClick={() => setSelected(d)}
-                            className="flex-1 py-2 rounded text-xs font-mono font-semibold transition-all"
-                            style={{
-                              background: "rgba(0,255,136,0.05)",
-                              border: "1px solid rgba(0,255,136,0.2)",
-                              color: "#86efac",
-                            }}
+                            className="flex-1 py-2 rounded-lg text-xs font-semibold border border-gray-200 text-gray-600 bg-white hover:bg-gray-50 transition-all"
                             data-ocid="live_drivers.secondary_button"
                           >
-                            DETAILS
+                            Details
                           </button>
                           <a
                             href={`#/book/${d.id}`}
-                            className="flex-1 py-2 rounded text-xs font-mono font-black text-center transition-all"
-                            style={{
-                              background: "#00ff88",
-                              color: "#000",
-                              boxShadow: "0 0 12px rgba(0,255,136,0.4)",
-                              display: "block",
-                            }}
+                            className="flex-1 py-2 rounded-lg text-xs font-bold text-center bg-green-600 hover:bg-green-700 text-white transition-all"
+                            style={{ display: "block" }}
                             data-ocid="live_drivers.primary_button"
                           >
-                            BOOK NOW
+                            Book Now
                           </a>
                         </div>
                       </div>
@@ -801,30 +576,25 @@ export default function LiveDriversPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
-            style={{ background: "rgba(0,0,0,0.85)" }}
+            style={{ background: "rgba(0,0,0,0.5)" }}
             onClick={() => setSelected(null)}
           >
             <motion.div
               initial={{ y: 60, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 60, opacity: 0 }}
-              className="w-full max-w-sm rounded-2xl p-6"
-              style={{
-                background: "#020c05",
-                border: "1px solid rgba(0,255,136,0.3)",
-                boxShadow: "0 0 40px rgba(0,255,136,0.1)",
-              }}
+              className="w-full max-w-sm bg-white rounded-2xl p-6 shadow-2xl border border-gray-100"
               onClick={(e) => e.stopPropagation()}
               data-ocid="live_drivers.modal"
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-white font-bold text-lg">
+                <h3 className="text-gray-900 font-bold text-lg">
                   {selected.name}
                 </h3>
                 <button
                   type="button"
                   onClick={() => setSelected(null)}
-                  className="text-gray-500 hover:text-white font-mono"
+                  className="text-gray-400 hover:text-gray-700 text-xl font-bold"
                   data-ocid="live_drivers.close_button"
                 >
                   ✕
@@ -833,62 +603,43 @@ export default function LiveDriversPage() {
 
               <div className="mb-4">
                 {selected.isOnline ? (
-                  <span
-                    className="inline-flex items-center gap-2 text-xs font-mono px-3 py-1.5 rounded"
-                    style={{
-                      background: "rgba(0,255,136,0.1)",
-                      border: "1px solid rgba(0,255,136,0.4)",
-                      color: "#00ff88",
-                    }}
-                  >
+                  <span className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full bg-green-50 border border-green-200 text-green-700">
                     <span
-                      className="w-2 h-2 rounded-full bg-[#00ff88]"
-                      style={{ boxShadow: "0 0 6px #00ff88" }}
+                      className="w-2 h-2 rounded-full bg-green-500"
+                      style={{ animation: "blink-dot 1s ease-in-out infinite" }}
                     />
-                    AVAILABLE NOW
+                    Available Now
                   </span>
                 ) : (
-                  <span
-                    className="inline-flex items-center gap-2 text-xs font-mono px-3 py-1.5 rounded"
-                    style={{
-                      background: "rgba(107,114,128,0.1)",
-                      border: "1px solid rgba(107,114,128,0.3)",
-                      color: "#6b7280",
-                    }}
-                  >
-                    <span className="w-2 h-2 rounded-full bg-gray-600 inline-block" />
-                    OFFLINE
+                  <span className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 text-gray-500">
+                    <span className="w-2 h-2 rounded-full bg-gray-300 inline-block" />
+                    Offline
                   </span>
                 )}
               </div>
 
               <div className="space-y-2 mb-4">
                 {[
-                  { l: "CITY", v: selected.city },
-                  { l: "STATE", v: selected.state },
-                  { l: "VEHICLE", v: selected.vehicleType || "Any" },
+                  { l: "City", v: selected.city },
+                  { l: "State", v: selected.state },
+                  { l: "Vehicle", v: selected.vehicleType || "Any" },
                   {
-                    l: "EXPERIENCE",
+                    l: "Experience",
                     v:
                       selected.experience ||
                       `${selected.experienceYears} years`,
                   },
-                  { l: "LANGUAGES", v: selected.languages.join(", ") },
-                  { l: "WORK AREAS", v: selected.workAreas || selected.city },
+                  { l: "Languages", v: selected.languages.join(", ") },
+                  { l: "Work Areas", v: selected.workAreas || selected.city },
                 ]
                   .filter((row) => row.v)
                   .map((row) => (
                     <div
                       key={row.l}
-                      className="flex justify-between items-start gap-4 text-sm"
+                      className="flex justify-between items-start gap-4 text-sm py-1.5 border-b border-gray-50"
                     >
-                      <span
-                        className="font-mono text-xs"
-                        style={{ color: "#4ade80" }}
-                      >
-                        {row.l}
-                      </span>
-                      <span className="text-white text-right font-mono text-xs">
+                      <span className="text-gray-500 text-xs">{row.l}</span>
+                      <span className="text-gray-900 text-right text-xs font-medium">
                         {row.v}
                       </span>
                     </div>
@@ -897,30 +648,18 @@ export default function LiveDriversPage() {
 
               {customerCity &&
                 selected.city.toLowerCase() === customerCity.toLowerCase() && (
-                  <div
-                    className="mb-4 px-3 py-2 rounded text-xs font-mono flex items-center gap-2"
-                    style={{
-                      background: "rgba(0,212,255,0.08)",
-                      border: "1px solid rgba(0,212,255,0.3)",
-                      color: "#00d4ff",
-                    }}
-                  >
+                  <div className="mb-4 px-3 py-2 rounded-lg bg-blue-50 border border-blue-100 text-blue-700 text-xs flex items-center gap-2">
                     <CheckCircle size={12} />
-                    DRIVER IN YOUR CITY
+                    Driver is in your city
                   </div>
                 )}
 
               <a
                 href={`#/book/${selected.id}`}
-                className="block w-full text-center py-3 rounded-xl font-mono font-black text-sm transition-all"
-                style={{
-                  background: "#00ff88",
-                  color: "#000",
-                  boxShadow: "0 0 20px rgba(0,255,136,0.4)",
-                }}
+                className="block w-full text-center py-3 rounded-xl font-bold text-sm bg-green-600 hover:bg-green-700 text-white transition-all"
                 data-ocid="live_drivers.primary_button"
               >
-                BOOK THIS DRIVER
+                Book This Driver
               </a>
             </motion.div>
           </motion.div>

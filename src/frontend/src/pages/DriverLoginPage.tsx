@@ -146,19 +146,6 @@ function getDriverBookings(driverName: string): LocalBooking[] {
   }
 }
 
-// Floating particle component
-function Particle({ style }: { style: React.CSSProperties }) {
-  return (
-    <div
-      className="absolute rounded-full pointer-events-none"
-      style={{
-        filter: "blur(40px)",
-        ...style,
-      }}
-    />
-  );
-}
-
 export default function DriverLoginPage() {
   const navigate = useNavigate();
   const [session, setSession] = useState<DriverSession | null>(
@@ -352,6 +339,7 @@ export default function DriverLoginPage() {
             (foundReg as any).submittedAt || new Date().toISOString(),
         };
         localStorage.setItem("driver_session", JSON.stringify(sess));
+        localStorage.removeItem("otp_customer");
         setSession(sess);
       } else {
         setLoginError("Login failed. Please try again.");
@@ -521,52 +509,29 @@ export default function DriverLoginPage() {
     const m = Math.floor(remaining / 60);
     const s = remaining % 60;
     return (
-      <div
-        className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden"
-        style={{ background: "#020408" }}
-      >
-        <Particle
-          style={{
-            width: 300,
-            height: 300,
-            top: "-100px",
-            left: "-100px",
-            background: "rgba(0,255,136,0.15)",
-          }}
-        />
-        <div className="max-w-sm w-full text-center relative z-10">
-          <div
-            className="w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center"
-            style={{
-              border: "2px solid rgba(251,191,36,0.5)",
-              boxShadow: "0 0 30px rgba(251,191,36,0.2)",
-              background: "rgba(251,191,36,0.05)",
-            }}
-          >
-            <Clock size={40} className="text-yellow-400" />
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="max-w-sm w-full text-center">
+          <div className="w-20 h-20 rounded-full bg-amber-50 border-2 border-amber-200 mx-auto mb-6 flex items-center justify-center">
+            <Clock size={40} className="text-amber-500" />
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Under Review</h2>
-          <p className="text-gray-400 mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Under Review
+          </h2>
+          <p className="text-gray-500 mb-6">
             Your application is pending admin approval.
           </p>
-          <div
-            className="rounded-2xl p-6 mb-6"
-            style={{
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.1)",
-            }}
-          >
-            <p className="text-yellow-400 text-5xl font-black font-mono">
+          <div className="rounded-2xl p-6 mb-6 bg-white border border-gray-200 shadow-sm">
+            <p className="text-amber-500 text-5xl font-black font-mono">
               {String(m).padStart(2, "0")}:{String(s).padStart(2, "0")}
             </p>
-            <p className="text-gray-500 text-sm mt-2">
+            <p className="text-gray-400 text-sm mt-2">
               estimated review time remaining
             </p>
           </div>
           <Button
             onClick={() => setStatusScreen("idle")}
             variant="outline"
-            className="border-white/20 text-gray-300"
+            className="border-gray-200 text-gray-600"
           >
             Back to Login
           </Button>
@@ -577,32 +542,22 @@ export default function DriverLoginPage() {
 
   if (statusScreen === "rejected") {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden"
-        style={{ background: "#020408" }}
-      >
-        <Particle
-          style={{
-            width: 300,
-            height: 300,
-            top: "-100px",
-            right: "-100px",
-            background: "rgba(239,68,68,0.1)",
-          }}
-        />
-        <div className="max-w-sm w-full text-center relative z-10">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="max-w-sm w-full text-center">
           <XCircle size={64} className="text-red-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-white mb-2">Not Approved</h2>
-          <p className="text-gray-400 mb-4">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Not Approved
+          </h2>
+          <p className="text-gray-500 mb-4">
             Your application was not approved. Contact support.
           </p>
-          <p className="text-sm text-gray-500 mb-6">
+          <p className="text-sm text-gray-400 mb-6">
             Support: +91-7836887228 (WhatsApp)
           </p>
           <Button
             onClick={() => setStatusScreen("idle")}
             variant="outline"
-            className="border-white/20 text-gray-300"
+            className="border-gray-200 text-gray-600"
           >
             Back to Login
           </Button>
@@ -614,114 +569,31 @@ export default function DriverLoginPage() {
   // --- LOGIN SCREEN ---
   if (!session) {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden"
-        style={{ background: "#020408" }}
-      >
-        {/* Animated gradient orbs */}
-        <Particle
-          style={{
-            width: 500,
-            height: 500,
-            top: "-200px",
-            left: "-150px",
-            background:
-              "radial-gradient(circle, rgba(0,255,136,0.18) 0%, transparent 70%)",
-          }}
-        />
-        <Particle
-          style={{
-            width: 400,
-            height: 400,
-            bottom: "-150px",
-            right: "-100px",
-            background:
-              "radial-gradient(circle, rgba(0,212,255,0.12) 0%, transparent 70%)",
-          }}
-        />
-        <Particle
-          style={{
-            width: 200,
-            height: 200,
-            top: "40%",
-            left: "60%",
-            background:
-              "radial-gradient(circle, rgba(0,255,136,0.08) 0%, transparent 70%)",
-          }}
-        />
-
-        {/* Grid pattern */}
-        <div
-          className="absolute inset-0 pointer-events-none opacity-20"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(0,255,136,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,136,0.05) 1px, transparent 1px)",
-            backgroundSize: "50px 50px",
-          }}
-        />
-
-        <div className="w-full max-w-sm relative z-10">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="w-full max-w-sm">
           {/* Logo */}
           <div className="text-center mb-8">
-            <div
-              className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center relative"
-              style={{
-                background: "rgba(0,255,136,0.1)",
-                border: "2px solid rgba(0,255,136,0.5)",
-                boxShadow:
-                  "0 0 30px rgba(0,255,136,0.3), inset 0 0 20px rgba(0,255,136,0.05)",
-              }}
-            >
-              <Car size={36} style={{ color: "#00ff88" }} />
+            <div className="w-20 h-20 rounded-full bg-green-100 border-2 border-green-300 mx-auto mb-4 flex items-center justify-center">
+              <Car size={36} className="text-green-600" />
             </div>
-            <h1 className="text-4xl font-black" style={{ color: "#ffffff" }}>
-              Drive<span style={{ color: "#00ff88" }}>Ease</span>
+            <h1 className="text-4xl font-black text-gray-900">
+              Drive<span className="text-green-600">Ease</span>
             </h1>
-            <p className="text-sm mt-1" style={{ color: "#4ade80" }}>
-              Driver Portal
-            </p>
+            <p className="text-sm mt-1 text-gray-500">Driver Portal</p>
           </div>
 
-          {/* Login card with 3D effect */}
-          <div
-            className="rounded-3xl p-6 transition-all duration-300"
-            style={{
-              background: "rgba(255,255,255,0.04)",
-              backdropFilter: "blur(20px)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              boxShadow:
-                "0 25px 50px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLDivElement).style.transform =
-                "perspective(1000px) rotateX(2deg)";
-              (e.currentTarget as HTMLDivElement).style.boxShadow =
-                "0 35px 60px rgba(0,0,0,0.6), 0 0 40px rgba(0,255,136,0.08)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLDivElement).style.transform = "none";
-              (e.currentTarget as HTMLDivElement).style.boxShadow =
-                "0 25px 50px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)";
-            }}
-          >
-            <h2 className="text-lg font-bold mb-1" style={{ color: "#00ff88" }}>
-              Captain Login
+          {/* Login card */}
+          <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-200">
+            <h2 className="text-lg font-bold mb-1 text-gray-900">
+              Driver Login
             </h2>
-            <p
-              className="text-sm mb-5"
-              style={{ color: "rgba(255,255,255,0.4)" }}
-            >
+            <p className="text-sm mb-5 text-gray-500">
               Login with your registered mobile number
             </p>
 
             {loginError && (
               <div
-                className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm mb-4"
-                style={{
-                  background: "rgba(239,68,68,0.1)",
-                  border: "1px solid rgba(239,68,68,0.3)",
-                  color: "#f87171",
-                }}
+                className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm mb-4 bg-red-50 border border-red-200 text-red-600"
                 data-ocid="driver_login.error_state"
               >
                 <AlertCircle size={14} />
@@ -731,38 +603,19 @@ export default function DriverLoginPage() {
 
             <div className="space-y-4">
               <div>
-                <Label
-                  className="text-sm font-medium mb-1.5 block"
-                  style={{ color: "rgba(255,255,255,0.6)" }}
-                >
+                <Label className="text-sm font-medium mb-1.5 block text-gray-700">
                   Mobile Number
                 </Label>
                 <div className="flex gap-2">
-                  <div
-                    className="flex items-center px-3 rounded-xl"
-                    style={{
-                      background: "rgba(255,255,255,0.06)",
-                      border: "1px solid rgba(255,255,255,0.1)",
-                    }}
-                  >
-                    <Phone size={14} style={{ color: "#4ade80" }} />
-                    <span
-                      className="text-sm ml-1.5"
-                      style={{ color: "#4ade80" }}
-                    >
-                      +91
-                    </span>
+                  <div className="flex items-center px-3 rounded-xl bg-gray-50 border border-gray-200">
+                    <Phone size={14} className="text-green-600" />
+                    <span className="text-sm ml-1.5 text-gray-700">+91</span>
                   </div>
                   <Input
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="10-digit mobile"
-                    className="flex-1 rounded-xl"
-                    style={{
-                      background: "rgba(255,255,255,0.06)",
-                      border: "1px solid rgba(255,255,255,0.1)",
-                      color: "white",
-                    }}
+                    className="flex-1 rounded-xl bg-white border-gray-200"
                     maxLength={10}
                     data-ocid="driver_login.input"
                   />
@@ -774,36 +627,18 @@ export default function DriverLoginPage() {
                   type="button"
                   onClick={sendOtp}
                   disabled={checkingBackend}
-                  className="w-full py-3 rounded-xl font-bold text-sm transition-all"
-                  style={{
-                    background: "#00ff88",
-                    color: "#000",
-                    boxShadow: "0 0 20px rgba(0,255,136,0.4)",
-                    opacity: checkingBackend ? 0.7 : 1,
-                  }}
+                  className="w-full py-3 rounded-xl font-bold text-sm bg-green-600 hover:bg-green-700 text-white transition-all disabled:opacity-60"
                   data-ocid="driver_login.submit_button"
                 >
                   {checkingBackend ? "Checking..." : "Send OTP →"}
                 </button>
               ) : (
                 <div className="space-y-3">
-                  <div
-                    className="rounded-xl px-4 py-3 text-center"
-                    style={{
-                      background: "rgba(0,255,136,0.07)",
-                      border: "1px solid rgba(0,255,136,0.2)",
-                    }}
-                  >
-                    <p
-                      className="text-xs mb-1"
-                      style={{ color: "rgba(255,255,255,0.4)" }}
-                    >
+                  <div className="rounded-xl px-4 py-3 text-center bg-green-50 border border-green-200">
+                    <p className="text-xs mb-1 text-gray-500">
                       Demo OTP (for testing)
                     </p>
-                    <p
-                      className="text-3xl font-black font-mono tracking-widest"
-                      style={{ color: "#00ff88" }}
-                    >
+                    <p className="text-3xl font-black font-mono tracking-widest text-green-700">
                       {generatedOtp}
                     </p>
                   </div>
@@ -811,24 +646,14 @@ export default function DriverLoginPage() {
                     value={otp}
                     onChange={(e) => setOtp(e.target.value)}
                     placeholder="Enter 4-digit OTP"
-                    className="text-center text-xl tracking-widest rounded-xl"
-                    style={{
-                      background: "rgba(255,255,255,0.06)",
-                      border: "1px solid rgba(255,255,255,0.1)",
-                      color: "white",
-                    }}
+                    className="text-center text-xl tracking-widest rounded-xl bg-white border-gray-200"
                     maxLength={4}
                     data-ocid="driver_login.input"
                   />
                   <button
                     type="button"
                     onClick={verifyOtp}
-                    className="w-full py-3 rounded-xl font-bold text-sm transition-all"
-                    style={{
-                      background: "#00ff88",
-                      color: "#000",
-                      boxShadow: "0 0 20px rgba(0,255,136,0.4)",
-                    }}
+                    className="w-full py-3 rounded-xl font-bold text-sm bg-green-600 hover:bg-green-700 text-white transition-all"
                     data-ocid="driver_login.confirm_button"
                   >
                     Verify & Login ✓
@@ -836,15 +661,11 @@ export default function DriverLoginPage() {
                 </div>
               )}
 
-              <p
-                className="text-center text-sm"
-                style={{ color: "rgba(255,255,255,0.4)" }}
-              >
+              <p className="text-center text-sm text-gray-500">
                 Not registered?{" "}
                 <a
                   href="#/register-driver"
-                  className="hover:underline"
-                  style={{ color: "#00ff88" }}
+                  className="text-green-600 hover:underline font-medium"
                   data-ocid="driver_login.link"
                 >
                   Register as Driver
@@ -864,106 +685,44 @@ export default function DriverLoginPage() {
   const net = gross - commission;
 
   return (
-    <div className="min-h-screen relative" style={{ background: "#020408" }}>
-      {/* Background particles */}
-      <Particle
-        style={{
-          width: 400,
-          height: 400,
-          top: 0,
-          left: "30%",
-          background:
-            "radial-gradient(circle, rgba(0,255,136,0.06) 0%, transparent 70%)",
-        }}
-      />
-      <Particle
-        style={{
-          width: 300,
-          height: 300,
-          bottom: 100,
-          right: 0,
-          background:
-            "radial-gradient(circle, rgba(0,212,255,0.05) 0%, transparent 70%)",
-        }}
-      />
-
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div
-        className="relative z-10 px-4 py-4"
-        style={{
-          background: "rgba(255,255,255,0.03)",
-          backdropFilter: "blur(20px)",
-          borderBottom: "1px solid rgba(255,255,255,0.08)",
-        }}
-      >
+      <div className="bg-white border-b border-gray-200 px-4 py-4">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div
-              className="w-12 h-12 rounded-full flex items-center justify-center font-black text-lg"
-              style={{
-                background: "rgba(0,255,136,0.15)",
-                border: "2px solid rgba(0,255,136,0.4)",
-                color: "#00ff88",
-                boxShadow: "0 0 15px rgba(0,255,136,0.2)",
-              }}
-            >
+            <div className="w-12 h-12 rounded-full bg-green-100 border-2 border-green-300 flex items-center justify-center font-black text-lg text-green-700">
               {session.name.charAt(0).toUpperCase()}
             </div>
             <div>
-              <h2 className="font-bold text-white">{session.name}</h2>
-              <div
-                className="flex items-center gap-1 text-xs"
-                style={{ color: "#4ade80" }}
-              >
+              <h2 className="font-bold text-gray-900">{session.name}</h2>
+              <div className="flex items-center gap-1 text-xs text-green-600">
                 <Navigation size={10} />
                 {session.city}
               </div>
-              <div
-                className="text-xs"
-                style={{ color: "rgba(255,255,255,0.3)" }}
-              >
-                In: {loginTimeIST}
-              </div>
+              <div className="text-xs text-gray-400">In: {loginTimeIST}</div>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Online toggle — glowing */}
+            {/* Online toggle */}
             <button
               type="button"
               onClick={toggleOnlineStatus}
-              className="flex items-center gap-2 px-4 py-2 rounded-full font-bold text-sm transition-all"
-              style={{
-                background: isOnline
-                  ? "rgba(0,255,136,0.15)"
-                  : "rgba(255,255,255,0.05)",
-                border: isOnline
-                  ? "1px solid #00ff88"
-                  : "1px solid rgba(255,255,255,0.15)",
-                color: isOnline ? "#00ff88" : "rgba(255,255,255,0.4)",
-                boxShadow: isOnline ? "0 0 15px rgba(0,255,136,0.3)" : "none",
-              }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold text-sm transition-all border ${
+                isOnline
+                  ? "bg-green-50 border-green-400 text-green-700"
+                  : "bg-gray-100 border-gray-200 text-gray-500"
+              }`}
               data-ocid="driver_login.toggle"
             >
               <span
-                className="w-2.5 h-2.5 rounded-full"
-                style={{
-                  background: isOnline ? "#00ff88" : "#4b5563",
-                  boxShadow: isOnline ? "0 0 8px #00ff88" : "none",
-                }}
+                className={`w-2.5 h-2.5 rounded-full ${isOnline ? "bg-green-500" : "bg-gray-400"}`}
               />
               {isOnline ? "Online" : "Offline"}
             </button>
 
             {isOnline && onlineTimer && (
-              <span
-                className="text-xs font-mono px-2 py-1 rounded-full"
-                style={{
-                  background: "rgba(0,255,136,0.1)",
-                  border: "1px solid rgba(0,255,136,0.3)",
-                  color: "#00ff88",
-                }}
-              >
+              <span className="text-xs font-mono px-2 py-1 rounded-full bg-green-50 border border-green-200 text-green-700">
                 ⏱ {onlineTimer}
               </span>
             )}
@@ -971,146 +730,93 @@ export default function DriverLoginPage() {
             <button
               type="button"
               onClick={handleLogout}
-              className="text-gray-600 hover:text-red-400 transition-colors"
+              className="flex items-center gap-1.5 text-red-500 hover:text-red-700 font-semibold text-sm transition-colors"
               data-ocid="driver_login.close_button"
             >
-              <LogOut size={20} />
+              <LogOut size={18} />
+              <span>Logout</span>
             </button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-5 relative z-10">
-        {/* Stats cards — 3D style */}
+      <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
+        {/* Stats cards */}
         <div className="grid grid-cols-3 gap-3">
           {[
             {
               icon: <IndianRupee size={18} />,
               label: "Net Earnings",
               val: `₹${net.toLocaleString("en-IN")}`,
-              color: "#00ff88",
-              glow: "rgba(0,255,136,0.2)",
+              colorCls: "text-green-600",
+              bg: "bg-green-50 border-green-200",
             },
             {
               icon: <TrendingUp size={18} />,
               label: "Total Trips",
               val: String(confirmed.length),
-              color: "#60a5fa",
-              glow: "rgba(96,165,250,0.2)",
+              colorCls: "text-blue-600",
+              bg: "bg-blue-50 border-blue-200",
             },
             {
               icon: <CreditCard size={18} />,
               label: "Commission",
               val: `₹${commission.toLocaleString("en-IN")}`,
-              color: "#fbbf24",
-              glow: "rgba(251,191,36,0.2)",
+              colorCls: "text-amber-600",
+              bg: "bg-amber-50 border-amber-200",
             },
           ].map((s) => (
             <div
               key={s.label}
-              className="rounded-2xl p-3 text-center transition-all"
-              style={{
-                background: "rgba(255,255,255,0.03)",
-                border: `1px solid ${s.color}30`,
-                borderTop: `2px solid ${s.color}`,
-                boxShadow: `0 4px 20px ${s.glow}`,
-              }}
+              className="rounded-2xl p-3 text-center border bg-white shadow-sm"
             >
-              <div
-                className="flex justify-center mb-1.5"
-                style={{ color: s.color }}
-              >
+              <div className={`flex justify-center mb-1.5 ${s.colorCls}`}>
                 {s.icon}
               </div>
-              <p className="text-base font-black" style={{ color: s.color }}>
-                {s.val}
-              </p>
-              <p
-                className="text-xs mt-0.5"
-                style={{ color: "rgba(255,255,255,0.4)" }}
-              >
-                {s.label}
-              </p>
+              <p className={`text-base font-black ${s.colorCls}`}>{s.val}</p>
+              <p className="text-xs mt-0.5 text-gray-500">{s.label}</p>
             </div>
           ))}
         </div>
 
         {/* Booking requests */}
         {bookingRequests.length > 0 && (
-          <div
-            className="rounded-2xl p-4"
-            style={{
-              background: "rgba(0,255,136,0.04)",
-              border: "1px solid rgba(0,255,136,0.3)",
-              boxShadow: "0 0 20px rgba(0,255,136,0.06)",
-            }}
-          >
+          <div className="bg-white border border-green-200 rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-3">
-              <Bell size={16} style={{ color: "#00ff88" }} />
-              <h3 className="font-semibold text-white">New Booking Request</h3>
-              <Badge
-                className="text-xs ml-auto"
-                style={{
-                  background: "rgba(0,255,136,0.05)",
-                  border: "1px solid rgba(0,255,136,0.2)",
-                  color: "#00ff88",
-                }}
-              >
+              <Bell size={16} className="text-green-600" />
+              <h3 className="font-semibold text-gray-900">
+                New Booking Request
+              </h3>
+              <Badge className="text-xs ml-auto bg-green-50 border border-green-200 text-green-700">
                 {getAlertType() === "push"
                   ? "📱 Push"
                   : getAlertType() === "sms"
                     ? "💬 SMS"
                     : "💬 WhatsApp"}
               </Badge>
-              <Badge
-                className="text-xs"
-                style={{
-                  background: "rgba(0,255,136,0.1)",
-                  border: "1px solid rgba(0,255,136,0.3)",
-                  color: "#00ff88",
-                }}
-              >
+              <Badge className="text-xs bg-green-100 border border-green-300 text-green-800">
                 {bookingRequests.length}
               </Badge>
             </div>
             {bookingRequests.map((req) => (
               <div
                 key={req.id}
-                className="rounded-xl p-3 mb-3"
-                style={{
-                  background: "rgba(255,255,255,0.03)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                }}
+                className="rounded-xl p-3 mb-3 bg-gray-50 border border-gray-200"
               >
-                <p className="text-white font-medium">{req.customerName}</p>
-                <p className="text-sm mt-1" style={{ color: "#4ade80" }}>
-                  📍 {req.pickup}
-                </p>
-                <p className="text-sm" style={{ color: "#4ade80" }}>
-                  🏁 {req.drop}
-                </p>
-                <p
-                  className="text-xs mt-0.5"
-                  style={{ color: "rgba(255,255,255,0.3)" }}
-                >
+                <p className="text-gray-900 font-medium">{req.customerName}</p>
+                <p className="text-sm mt-1 text-gray-600">📍 {req.pickup}</p>
+                <p className="text-sm text-gray-600">🏁 {req.drop}</p>
+                <p className="text-xs mt-0.5 text-gray-400">
                   🕒 {formatIST(req.timestamp)}
                 </p>
-                <p
-                  className="font-bold text-base mt-1"
-                  style={{ color: "#00ff88" }}
-                >
+                <p className="font-bold text-base mt-1 text-green-700">
                   ₹{req.amount.toLocaleString("en-IN")}
                 </p>
                 <div className="flex gap-2 mt-3">
                   <button
                     type="button"
                     onClick={() => handleAcceptRequest(req)}
-                    className="flex-1 py-2 rounded-xl font-semibold text-sm flex items-center justify-center gap-1.5 transition-all"
-                    style={{
-                      background: "#00ff88",
-                      color: "#000",
-                      boxShadow: "0 0 12px rgba(0,255,136,0.3)",
-                    }}
+                    className="flex-1 py-2 rounded-xl font-semibold text-sm flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 text-white transition-all"
                     data-ocid="driver_login.confirm_button"
                   >
                     <CheckCircle size={14} /> Accept
@@ -1118,12 +824,7 @@ export default function DriverLoginPage() {
                   <button
                     type="button"
                     onClick={() => handleRejectRequest(req)}
-                    className="flex-1 py-2 rounded-xl font-semibold text-sm flex items-center justify-center gap-1.5 transition-all"
-                    style={{
-                      background: "rgba(239,68,68,0.1)",
-                      border: "1px solid rgba(239,68,68,0.3)",
-                      color: "#f87171",
-                    }}
+                    className="flex-1 py-2 rounded-xl font-semibold text-sm flex items-center justify-center gap-1.5 bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-all"
                     data-ocid="driver_login.delete_button"
                   >
                     <X size={14} /> Decline
@@ -1135,14 +836,10 @@ export default function DriverLoginPage() {
         )}
 
         {/* Withdrawal */}
-        <div
-          className="rounded-2xl p-5"
-          style={{
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.08)",
-          }}
-        >
-          <h3 className="font-semibold text-white mb-4">Request Withdrawal</h3>
+        <div className="rounded-2xl p-5 bg-white border border-gray-200 shadow-sm">
+          <h3 className="font-semibold text-gray-900 mb-4">
+            Request Withdrawal
+          </h3>
           <div className="flex gap-2 mb-4">
             {(["upi", "bank"] as const).map((m) => (
               <button
@@ -1151,17 +848,17 @@ export default function DriverLoginPage() {
                 onClick={() => setWithdrawMode(m)}
                 className="flex-1 py-2 rounded-xl text-sm font-medium transition-all"
                 style={{
-                  background:
-                    withdrawMode === m ? "#00ff88" : "rgba(255,255,255,0.05)",
-                  border:
-                    withdrawMode === m
-                      ? "1px solid #00ff88"
-                      : "1px solid rgba(255,255,255,0.1)",
-                  color: withdrawMode === m ? "#000" : "rgba(255,255,255,0.5)",
-                  boxShadow:
-                    withdrawMode === m
-                      ? "0 0 12px rgba(0,255,136,0.3)"
-                      : "none",
+                  ...(withdrawMode === m
+                    ? {
+                        background: "#16a34a",
+                        color: "white",
+                        border: "1px solid #16a34a",
+                      }
+                    : {
+                        background: "white",
+                        color: "#6b7280",
+                        border: "1px solid #e5e7eb",
+                      }),
                 }}
               >
                 {m === "upi" ? "UPI ID" : "Bank Transfer"}
@@ -1170,82 +867,53 @@ export default function DriverLoginPage() {
           </div>
           <div className="space-y-3">
             <div>
-              <Label
-                className="text-sm mb-1.5 block"
-                style={{ color: "rgba(255,255,255,0.5)" }}
-              >
+              <Label className="text-sm mb-1.5 block text-gray-600">
                 Account Holder Name (must match registered name)
               </Label>
               <Input
                 value={accountHolder}
                 onChange={(e) => setAccountHolder(e.target.value)}
                 placeholder={`Enter: ${session.name}`}
-                className="rounded-xl"
-                style={{
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  color: "white",
-                }}
+                className="rounded-xl bg-white border-gray-200"
                 data-ocid="driver_login.input"
               />
             </div>
             {withdrawMode === "upi" ? (
               <div>
-                <Label
-                  className="text-sm mb-1.5 block"
-                  style={{ color: "rgba(255,255,255,0.5)" }}
-                >
+                <Label className="text-sm mb-1.5 block text-gray-600">
                   UPI ID
                 </Label>
                 <Input
                   value={upiId}
                   onChange={(e) => setUpiId(e.target.value)}
                   placeholder="yourname@upi"
-                  className="rounded-xl"
-                  style={{
-                    background: "rgba(255,255,255,0.06)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    color: "white",
-                  }}
+                  className="rounded-xl bg-white border-gray-200"
                   data-ocid="driver_login.input"
                 />
               </div>
             ) : (
               <div>
-                <Label
-                  className="text-sm mb-1.5 block"
-                  style={{ color: "rgba(255,255,255,0.5)" }}
-                >
+                <Label className="text-sm mb-1.5 block text-gray-600">
                   Account Number
                 </Label>
                 <Input
                   value={accountNumber}
                   onChange={(e) => setAccountNumber(e.target.value)}
                   placeholder="Enter account number"
-                  className="rounded-xl"
-                  style={{
-                    background: "rgba(255,255,255,0.06)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    color: "white",
-                  }}
+                  className="rounded-xl bg-white border-gray-200"
                   data-ocid="driver_login.input"
                 />
               </div>
             )}
           </div>
           {withdrawError && (
-            <p
-              className="text-sm mt-2"
-              style={{ color: "#f87171" }}
-              data-ocid="driver_login.error_state"
-            >
+            <p className="text-red-600" data-ocid="driver_login.error_state">
               {withdrawError}
             </p>
           )}
           {withdrawStatus && (
             <p
-              className="text-sm mt-2"
-              style={{ color: "#00ff88" }}
+              className="text-green-600"
               data-ocid="driver_login.success_state"
             >
               {withdrawStatus}
@@ -1254,12 +922,7 @@ export default function DriverLoginPage() {
           <button
             type="button"
             onClick={handleWithdraw}
-            className="w-full mt-4 py-3 rounded-xl font-bold text-sm transition-all"
-            style={{
-              background: "#00ff88",
-              color: "#000",
-              boxShadow: "0 0 15px rgba(0,255,136,0.3)",
-            }}
+            className="w-full mt-4 py-3 rounded-xl font-bold text-sm bg-green-600 hover:bg-green-700 text-white transition-all"
             data-ocid="driver_login.submit_button"
           >
             Request Withdrawal
@@ -1268,14 +931,8 @@ export default function DriverLoginPage() {
 
         {/* OTP Verification */}
         {driverBookings.filter((b) => b.status === "confirmed").length > 0 && (
-          <div
-            className="rounded-2xl p-5"
-            style={{
-              background: "rgba(0,255,136,0.03)",
-              border: "1px solid rgba(0,255,136,0.2)",
-            }}
-          >
-            <h3 className="font-semibold text-white mb-4">
+          <div className="rounded-2xl p-5 bg-white border border-green-200 shadow-sm">
+            <h3 className="font-semibold text-gray-900 mb-4">
               🚗 Active Rides — OTP Verification
             </h3>
             {driverBookings
@@ -1283,33 +940,22 @@ export default function DriverLoginPage() {
               .map((b) => (
                 <div
                   key={b.id}
-                  className="rounded-xl p-4 mb-3"
-                  style={{
-                    background: "rgba(255,255,255,0.03)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                  }}
+                  className="rounded-xl p-4 mb-3 bg-gray-50 border border-gray-100"
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-white font-medium">{b.customerName}</p>
-                    <p className="font-bold" style={{ color: "#00ff88" }}>
+                    <p className="text-gray-900 font-medium">
+                      {b.customerName}
+                    </p>
+                    <p className="font-bold text-green-700">
                       ₹{b.total.toLocaleString("en-IN")}
                     </p>
                   </div>
-                  <p className="text-xs" style={{ color: "#4ade80" }}>
+                  <p className="text-xs text-gray-500">
                     📅 {formatIST(b.startDate)}
                   </p>
                   {!rideStarted[b.id] ? (
-                    <div
-                      className="mt-3 rounded-xl p-3"
-                      style={{
-                        background: "rgba(255,255,255,0.03)",
-                        border: "1px solid rgba(255,255,255,0.08)",
-                      }}
-                    >
-                      <p
-                        className="text-xs font-semibold mb-2"
-                        style={{ color: "rgba(255,255,255,0.5)" }}
-                      >
+                    <div className="mt-3 rounded-xl p-3 bg-white border border-gray-200">
+                      <p className="text-xs font-semibold mb-2 text-gray-500">
                         Enter Customer OTP to Start Ride
                       </p>
                       <div className="flex gap-2">
@@ -1324,11 +970,7 @@ export default function DriverLoginPage() {
                             }))
                           }
                           placeholder="6-digit OTP"
-                          className="flex-1 px-3 py-2 rounded-lg text-white text-sm outline-none"
-                          style={{
-                            background: "rgba(255,255,255,0.06)",
-                            border: "1px solid rgba(255,255,255,0.1)",
-                          }}
+                          className="flex-1 px-3 py-2 rounded-lg text-gray-900 text-sm outline-none bg-white border border-gray-200 focus:border-green-400"
                           data-ocid="driver_login.input"
                         />
                         <button
@@ -1367,11 +1009,7 @@ export default function DriverLoginPage() {
                               }));
                             }
                           }}
-                          className="px-4 py-2 rounded-lg font-semibold text-sm transition-colors"
-                          style={{
-                            background: "#00ff88",
-                            color: "#000",
-                          }}
+                          className="px-4 py-2 rounded-lg font-semibold text-sm bg-green-600 hover:bg-green-700 text-white transition-colors"
                           data-ocid="driver_login.confirm_button"
                         >
                           Verify
@@ -1379,8 +1017,7 @@ export default function DriverLoginPage() {
                       </div>
                       {otpErrors[b.id] && (
                         <p
-                          className="text-xs mt-1"
-                          style={{ color: "#f87171" }}
+                          className="text-xs mt-1 text-red-600"
                           data-ocid="driver_login.error_state"
                         >
                           {otpErrors[b.id]}
@@ -1389,10 +1026,7 @@ export default function DriverLoginPage() {
                     </div>
                   ) : (
                     <div className="mt-3 flex items-center gap-2">
-                      <span
-                        className="text-sm font-semibold"
-                        style={{ color: "#00ff88" }}
-                      >
+                      <span className="text-sm font-semibold text-green-600">
                         ✅ OTP Verified
                       </span>
                       <button
@@ -1417,12 +1051,7 @@ export default function DriverLoginPage() {
                             [b.id]: false,
                           }));
                         }}
-                        className="px-4 py-2 rounded-xl font-bold text-sm transition-all"
-                        style={{
-                          background: "#00ff88",
-                          color: "#000",
-                          boxShadow: "0 0 10px rgba(0,255,136,0.3)",
-                        }}
+                        className="px-4 py-2 rounded-xl font-bold text-sm bg-green-600 hover:bg-green-700 text-white transition-all"
                         data-ocid="driver_login.primary_button"
                       >
                         🚗 Start Ride
@@ -1441,28 +1070,20 @@ export default function DriverLoginPage() {
             b.pickupAddress && b.dropAddress ? (
               <div
                 key={`map-${b.id}`}
-                className="rounded-2xl overflow-hidden"
-                style={{
-                  border: "1px solid rgba(0,255,136,0.3)",
-                  boxShadow: "0 0 20px rgba(0,255,136,0.06)",
-                }}
+                className="rounded-2xl overflow-hidden border border-green-200 shadow-sm"
               >
-                <div
-                  className="px-4 py-3 flex items-center justify-between"
-                  style={{ background: "rgba(0,255,136,0.05)" }}
-                >
+                <div className="px-4 py-3 flex items-center justify-between bg-green-50">
                   <div>
-                    <p className="font-semibold text-white text-sm">
+                    <p className="font-semibold text-gray-900 text-sm">
                       Route Map
                     </p>
-                    <p className="text-xs" style={{ color: "#4ade80" }}>
+                    <p className="text-xs text-green-600">
                       Pickup: {b.pickupAddress?.slice(0, 40)}...
                     </p>
                   </div>
                   <a
                     href="/driver-nav"
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5"
-                    style={{ background: "#00ff88", color: "#000" }}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 bg-green-600 text-white hover:bg-green-700"
                     data-ocid="driver_login.link"
                   >
                     <Navigation size={12} />
@@ -1491,40 +1112,27 @@ export default function DriverLoginPage() {
 
         {/* Recent Bookings */}
         {driverBookings.length > 0 && (
-          <div
-            className="rounded-2xl p-5"
-            style={{
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.08)",
-            }}
-          >
-            <h3 className="font-semibold text-white mb-4">Recent Bookings</h3>
+          <div className="rounded-2xl p-5 bg-white border border-gray-200 shadow-sm">
+            <h3 className="font-semibold text-gray-900 mb-4">
+              Recent Bookings
+            </h3>
             {driverBookings
               .slice(-5)
               .reverse()
               .map((b, idx) => (
                 <div
                   key={b.id}
-                  className="flex items-center justify-between py-3"
-                  style={{
-                    borderBottom:
-                      idx < 4 ? "1px solid rgba(255,255,255,0.06)" : "none",
-                  }}
+                  className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0"
                   data-ocid={`driver_login.item.${idx + 1}`}
                 >
                   <div>
-                    <p className="text-white text-sm font-medium">
+                    <p className="text-gray-900 text-sm font-medium">
                       {b.customerName}
                     </p>
-                    <p
-                      className="text-xs"
-                      style={{ color: "rgba(255,255,255,0.3)" }}
-                    >
-                      {b.startDate}
-                    </p>
+                    <p className="text-xs text-gray-400">{b.startDate}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold" style={{ color: "#00ff88" }}>
+                    <p className="font-bold text-green-700">
                       ₹{b.total.toLocaleString("en-IN")}
                     </p>
                     <span
@@ -1532,10 +1140,10 @@ export default function DriverLoginPage() {
                       style={{
                         color:
                           b.status === "confirmed"
-                            ? "#00ff88"
+                            ? "#16a34a"
                             : b.status === "rejected"
-                              ? "#f87171"
-                              : "#fbbf24",
+                              ? "#dc2626"
+                              : "#d97706",
                       }}
                     >
                       {b.status}
