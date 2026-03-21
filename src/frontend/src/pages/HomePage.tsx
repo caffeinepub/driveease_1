@@ -139,9 +139,9 @@ export default function HomePage() {
           className="absolute inset-0 md:hidden"
           style={{
             backgroundImage:
-              "url('/assets/generated/hero-driver.dim_1600x900.jpg')",
+              "url('/assets/generated/hero-driver-3d.dim_1200x700.jpg')",
             backgroundSize: "cover",
-            backgroundPosition: "center",
+            backgroundPosition: "top center",
             filter: "blur(3px) brightness(0.4)",
             transform: "scale(1.05)",
           }}
@@ -232,14 +232,15 @@ export default function HomePage() {
                 }}
               />
               <img
-                src="/assets/generated/hero-driver.dim_1600x900.jpg"
+                src="/assets/generated/hero-driver-3d.dim_1200x700.jpg"
                 alt="Professional DriveEase driver standing by car"
                 className="relative rounded-2xl shadow-2xl object-cover"
+                loading="eager"
                 style={{
                   width: "480px",
                   height: "580px",
                   objectFit: "cover",
-                  objectPosition: "center top",
+                  objectPosition: "top center",
                   boxShadow:
                     "0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(22,163,74,0.15)",
                 }}
